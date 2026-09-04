@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cweb — 展區 C：睡眠劇場</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  ============================================================
+  Cweb — 網站架構
+  ------------------------------------------------------------
+  1. <header>        品牌列 / 房型切換 / 連線狀態
+  2. <main class=stage>
+     2a. .panel-plan   左：房型平面圖 + 流動熱感應層 (canvas)
+                       - #heatCanvas  低解析熱場，放大平滑輸出
+                       - #planSvg     家具 / 牆體向量圖層
+                       - .legend      色階圖例
+     2b. .rail         右：環境即時數值 tiles（ref 發光邊緣風格）
+                       - 溫度 / 濕度 / 噪音 / 床位適合度
+                       - .spark 迷你趨勢線
+  3. <footer>        房型清單 + 資料來源說明
+  ------------------------------------------------------------
+  資料層：DataSource（目前為模擬假資料，之後可換 WebSocket 接 TD）
+  ============================================================
+-->
+<style>
+:root{
+  --bg-0:#000206;
+  --bg-1:#02050e;
+  --ink:#eaf1ff;
+  --ink-dim:#8ba0c6;
+  --ink-faint:#4d5d80;
+  --blue:#2f6bff;
+  --blue-lt:#7fb0ff;
+  --edge:rgba(126,170,255,.45);
+  --r:26px;
+  --rail:330px;
+  --pad:clamp(14px,2vw,30px);
+  --font:"Inter 18pt","Inter","Helvetica Neue",-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:var(--font);
+  color:var(--ink);
+  background:
+    radial-gradient(85% 65% at 16% -12%, rgba(20,66,195,.34) 0%, transparent 62%),
+    radial-gradient(75% 60% at 104% 112%, rgba(10,40,150,.30) 0%, transparent 58%),
+    radial-gradient(60% 40% at 50% 45%, rgba(6,24,78,.36) 0%, transparent 70%),
+    linear-gradient(180deg,var(--bg-1),var(--bg-0));
+  background-attachment:fixed;
+  min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- ref 風格：發光邊緣面板 ---------- */
+.tile{
+  position:relative;
+  border-radius:var(--r);
+  background:
+    linear-gradient(158deg, rgba(255,255,255,.085) 0%, rgba(255,255,255,.022) 26%, rgba(255,255,255,0) 52%),
+    radial-gradient(130% 150% at 50% -30%, rgba(52,116,240,.24) 0%, transparent 62%),
+    rgba(5,12,34,.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -1px 0 rgba(255,255,255,.045),
+    inset 0 0 50px rgba(38,88,210,.10),
+    0 26px 60px rgba(0,0,0,.55),
+    0 2px 12px rgba(0,0,0,.40);
+  backdrop-filter:blur(20px) saturate(150%);
+  -webkit-backdrop-filter:blur(20px) saturate(150%);
+  overflow:hidden;
+}
+/* 玻璃邊緣：上緣受光、下緣淡出 */
+.tile::before{
+  content:"";
+  position:absolute;inset:0;
+  border-radius:inherit;
+  padding:1px;
+  background:linear-gradient(155deg,
+    rgba(255,255,255,.60) 0%,
+    rgba(150,190,255,.16) 26%,
+    rgba(255,255,255,.03) 54%,
+    rgba(150,195,255,.28) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  pointer-events:none;
+}
+/* 斜向反光 */
+.tile::after{
+  content:"";
+  position:absolute;inset:0;
+  border-radius:inherit;
+  background:
+    linear-gradient(118deg, transparent 26%, rgba(255,255,255,.06) 43%, rgba(255,255,255,0) 58%),
+    radial-gradient(70% 45% at 12% -8%, rgba(255,255,255,.10), transparent 70%);
+  pointer-events:none;
+}
+.tile > *{position:relative;z-index:1;}
+.tile.is-hot{
+  background:
+    linear-gradient(158deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.03) 26%, rgba(255,255,255,0) 52%),
+    radial-gradient(130% 150% at 50% -30%, rgba(58,128,245,.36) 0%, transparent 64%),
+    rgba(6,16,50,.58);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 0 -1px 0 rgba(255,255,255,.06),
+    inset 0 0 60px rgba(56,120,255,.20),
+    0 26px 70px rgba(0,0,0,.55),
+    0 0 0 1px rgba(120,170,255,.10);
+}
+
+/* ---------- header ---------- */
+header{
+  display:flex;align-items:center;gap:20px;
+  padding:20px var(--pad) 12px;
+}
+.head-left{display:flex;align-items:center;gap:18px;min-width:0;flex:1;}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto;}
+.brand .mark{
+  width:36px;height:36px;border-radius:12px;
+  background:linear-gradient(158deg,rgba(255,255,255,.28),rgba(255,255,255,.04) 45%),
+             radial-gradient(120% 120% at 50% 10%,#4d86ff,#0d2470 62%,#050e28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 1px rgba(150,195,255,.28),0 8px 24px rgba(30,90,230,.35);
+}
+.brand h1{font-size:16px;letter-spacing:.14em;margin:0;font-weight:600;text-transform:uppercase;}
+.brand small{display:block;font-size:11px;color:var(--ink-faint);letter-spacing:.18em;margin-top:2px;}
+
+.seg{display:flex;gap:6px;padding:5px;border-radius:16px;width:100%;
+  background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.015));
+  backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 0 0 1px rgba(130,175,255,.12),0 10px 26px rgba(0,0,0,.4);}
+.seg button{
+  flex:1;appearance:none;border:0;cursor:pointer;
+  font:inherit;font-size:12.5px;letter-spacing:.06em;
+  color:var(--ink-dim);background:transparent;
+  padding:8px 14px;border-radius:12px;transition:.22s;
+}
+.seg button:hover{color:var(--ink);}
+.seg button[aria-selected="true"]{
+  color:#fff;
+  background:linear-gradient(180deg,rgba(88,148,255,.42),rgba(24,62,170,.42));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 0 1px rgba(150,195,255,.28),0 6px 20px rgba(40,100,255,.30);
+}
+.status{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-dim);letter-spacing:.1em;}
+.dot{width:7px;height:7px;border-radius:50%;background:#5ad6a0;box-shadow:0 0 10px rgba(90,214,160,.75);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---------- layout ---------- */
+.stage{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) var(--rail);
+  gap:20px;
+  padding:8px var(--pad) 0;
+  align-items:stretch;
+}
+@media (max-width:960px){
+  header{grid-template-columns:1fr;}
+  .stage{grid-template-columns:1fr;}
+}
+
+/* ---------- 左：平面圖 ---------- */
+.panel-plan{padding:18px;display:flex;flex-direction:column;}
+.panel-head{display:flex;align-items:baseline;gap:12px;margin:2px 4px 14px;}
+.panel-head h2{margin:0;font-size:14px;font-weight:600;letter-spacing:.1em;}
+.panel-head span{font-size:11.5px;color:var(--ink-faint);letter-spacing:.12em;}
+.plan-wrap{
+  position:relative;
+  height:calc(100vh - 330px);
+  width:min(100%, calc((100vh - 330px) * 480 / 260));
+  min-height:260px;margin:0 auto;
+  border-radius:16px;overflow:hidden;
+  background:#00030a;
+  box-shadow:
+    inset 0 0 0 1px rgba(120,170,255,.18),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 10px 30px rgba(0,0,0,.5);
+}
+#heatCanvas,#planSvg,#gridLayer{position:absolute;inset:0;width:100%;height:100%;}
+#heatCanvas{filter:saturate(1.15) contrast(1.03) blur(.4px);}
+#gridLayer{
+  background-image:
+    linear-gradient(rgba(120,170,255,.10) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(120,170,255,.10) 1px,transparent 1px);
+  background-size:calc(100%/12) calc(100%/7);
+  mix-blend-mode:screen;pointer-events:none;
+}
+#planSvg{pointer-events:none;}
+/* 標題：整頁最下方，置中對齊左欄 */
+.caption-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) var(--rail);
+  gap:20px;padding:52px var(--pad) 18px;
+}
+.plan-caption{
+  text-align:center;
+  font-family:"Inter 18pt","Inter",var(--font);
+  font-weight:600;
+  font-size:clamp(26px,2.05vw,40px);
+  letter-spacing:.10em;color:#eef4ff;
+  text-shadow:0 0 26px rgba(90,160,255,.7);
+}
+.legend{display:flex;align-items:center;gap:10px;width:min(100%, calc((100vh - 330px) * 480 / 260));margin:14px auto 0;font-size:11px;color:var(--ink-faint);letter-spacing:.1em;}
+.legend .bar{
+  flex:1;height:6px;border-radius:3px;
+  background:linear-gradient(90deg,#040c2e,#1442c6,#20a6d0,#54be7c,#eed448,#ee7c32,#e4322c);
+  box-shadow:inset 0 0 0 1px rgba(150,190,255,.25);
+}
+
+/* ---------- 右：數值 rail ---------- */
+.rail{display:grid;grid-template-rows:repeat(4,1fr);gap:16px;}
+.metric{padding:18px 20px;display:flex;gap:14px;align-items:center;}
+.metric .ico{
+  width:36px;height:36px;flex:none;border-radius:12px;
+  display:grid;place-items:center;position:relative;z-index:1;
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.03) 60%),
+             radial-gradient(120% 120% at 50% 10%,rgba(80,140,255,.35),rgba(8,20,56,.55));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 0 0 1px rgba(150,195,255,.16);
+}
+.metric .ico svg{width:17px;height:17px;stroke:#cfe2ff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.metric .body{flex:1;min-width:0;}
+.metric .label{font-size:11px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase;}
+.metric .val{font-size:30px;font-weight:600;letter-spacing:-.01em;margin-top:3px;line-height:1;font-variant-numeric:tabular-nums;}
+.metric .val u{font-size:14px;font-weight:400;color:var(--ink-dim);text-decoration:none;margin-left:3px;}
+.metric .sub{font-size:11px;color:var(--ink-faint);margin-top:6px;letter-spacing:.06em;}
+.spark{display:block;width:100%;height:40px;margin-top:10px;opacity:.9;}
+
+/* 床位適合度 */
+.score{padding:20px;display:flex;flex-direction:column;justify-content:center;}
+.score .label{font-size:11px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase;}
+.score .big{font-size:44px;font-weight:600;line-height:1;margin:8px 0 4px;font-variant-numeric:tabular-nums;}
+.score .tagline{font-size:12px;color:var(--ink-dim);}
+.meter{height:8px;border-radius:5px;margin-top:14px;position:relative;z-index:1;
+  background:rgba(4,10,28,.75);box-shadow:inset 0 1px 2px rgba(0,0,0,.6),inset 0 0 0 1px rgba(130,175,255,.14);overflow:hidden;}
+.meter i{display:block;height:100%;border-radius:5px;width:0;transition:width .8s cubic-bezier(.22,1,.36,1);
+  background:linear-gradient(90deg,#1c6bff,#6fdcff);box-shadow:0 0 18px rgba(80,180,255,.75);}
+
+/* ---------- footer 房型清單 ---------- */
+footer{padding:14px var(--pad) 18px;}
+.rooms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) var(--rail);gap:16px;}
+.rooms .spacer{visibility:hidden;}
+@media (max-width:960px){ .rooms{grid-template-columns:1fr;} .rooms .spacer{display:none;} }
+.room{
+  padding:12px 16px;cursor:pointer;text-align:left;border:0;color:inherit;font:inherit;
+  transition:transform .25s cubic-bezier(.22,1,.36,1);
+}
+.room{transition:transform .25s cubic-bezier(.22,1,.36,1),box-shadow .25s ease;}
+.room:hover{transform:translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 0 0 60px rgba(56,120,255,.16),
+    0 30px 70px rgba(0,0,0,.6);}
+.room .rt{font-size:13px;font-weight:600;letter-spacing:.06em;}
+.room .rd{font-size:11px;color:var(--ink-faint);margin-top:5px;letter-spacing:.08em;}
+.room .rv{display:flex;gap:10px;margin-top:10px;font-size:11px;color:var(--ink-dim);font-variant-numeric:tabular-nums;}
+.room[aria-selected="true"] .rt{color:#bcd8ff;}
+.foot-note{margin-top:18px;font-size:11px;color:var(--ink-faint);letter-spacing:.1em;}
+
+/* 底部倒影（ref 感） */
+.reflect{
+  height:70px;margin:-8px var(--pad) 0;
+  background:linear-gradient(180deg,rgba(40,100,220,.18),transparent 70%);
+  filter:blur(14px);opacity:.7;pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-left">
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <h1>Zone C · Sleep Theater</h1>
+        <small>展區 C：睡眠劇場 / 房型熱感應監測</small>
+      </div>
+    </div>
+    <div class="status"><span class="dot"></span><span id="srcLabel">SIMULATED FEED · 1 Hz</span></div>
+  </div>
+
+</header>
+
+<main class="stage">
+
+  <!-- 2a. 左：平面圖 + 熱感應 -->
+  <section class="tile panel-plan">
+    <div class="panel-head">
+      <h2 id="planTitle">展區 C · 睡眠劇場</h2>
+      <span id="planMeta">SLEEP THEATER · 主臥區 · 感測點 36</span>
+    </div>
+
+    <div class="plan-wrap">
+      <canvas id="heatCanvas"></canvas>
+      <div id="gridLayer"></div>
+      <svg id="planSvg" viewBox="0 0 480 260" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="legend">
+      <span>COOL</span><span class="bar"></span><span>HOT</span>
+      <span id="peakLabel" style="margin-left:10px;color:var(--ink-dim)">峰值 —</span>
+    </div>
+  </section>
+
+  <!-- 2b. 右：環境即時數值 -->
+  <aside class="rail">
+    <div class="tile metric">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 1 0-4 0v9.8a4 4 0 1 0 4 0z"/></svg></div>
+      <div class="body">
+        <div class="label">Temperature</div>
+        <div class="val"><span id="tVal">24.5</span><u>°C</u></div>
+        <canvas class="spark" id="tSpark"></canvas>
+      </div>
+    </div>
+
+    <div class="tile metric">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.4 6 10.2A6 6 0 0 1 6 13.2C6 9.4 12 3 12 3z"/></svg></div>
+      <div class="body">
+        <div class="label">Humidity</div>
+        <div class="val"><span id="hVal">60</span><u>%</u></div>
+        <canvas class="spark" id="hSpark"></canvas>
+      </div>
+    </div>
+
+    <div class="tile metric">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 8.5a5 5 0 0 1 0 7"/></svg></div>
+      <div class="body">
+        <div class="label">Noise Level</div>
+        <div class="val"><span id="nVal">35</span><u>dB</u></div>
+        <canvas class="spark" id="nSpark"></canvas>
+      </div>
+    </div>
+
+    <div class="tile score is-hot">
+      <div class="label">Bed Suitability</div>
+      <div class="big"><span id="sVal">92</span></div>
+      <div class="tagline" id="sText">環境穩定，適合休息</div>
+      <div class="meter"><i id="sBar"></i></div>
+    </div>
+  </aside>
+</main>
+
+<div class="caption-row">
+  <div class="plan-caption">Bed Suitability Info</div>
+</div>
+
+<script>
+/* ============================================================
+   1. 展區 C 平面（依 3D 俯視圖 1:1 描繪，座標系 480 × 260）
+      floors：地板範圍   walls：牆體斜線剖面
+      zones：相鄰暗空間   items：家具
+   ============================================================ */
+const ROOM = {
+  id:'zoneC', name:'展區 C · 睡眠劇場', meta:'SLEEP THEATER · 主臥區 · 感測點 36',
+  base:{t:24.8,h:58,n:33},
+
+  floors:[
+    [ 53, 12, 295, 248],   // 主臥木地板
+    [348, 63,  64, 197]    // 右側延伸區
+  ],
+
+  walls:[
+    [105,  0, 250, 12],    // 上方外牆
+    [ 42,  0,  63, 46],    // 左上牆垛（更衣區隔間）
+    [ 42, 46,  11, 214],   // 主臥左牆
+    [  5, 30,   8, 230],   // 走道外牆
+    [348,  0,   7, 63],    // 右牆（上段）
+    [348, 57,  70,  6],    // 右側橫牆
+    [412, 63,   8, 197],   // 右側延伸區外牆
+    [ 42, 250, 11,  10]    // 左牆下端
+  ],
+
+  zones:[
+    [ 13, 34,  29, 226],   // 左側走道
+    [355,  0, 125, 57],    // 右上暗房
+    [420, 63,  60, 197]    // 右側暗房
+  ],
+
+  items:[
+    {t:'panel',    x:105, y:12,  w:243, h:32},                          // 床頭木飾牆
+    {t:'bed',      x:167, y:15,  w:121, h:140, dir:'up', pillows:2},    // 主床（雙人）
+    {t:'cabinet',  x:52,  y:55,  w:50,  h:98},                          // 左側高櫃 / 檯面
+    {t:'rack',     x:52,  y:155, w:38,  h:54},                          // 開放層架
+    {t:'stool',    cx:90, cy:181, r:9},                                 // 圓凳
+    {t:'console',  x:90,  y:209, w:169, h:51},                          // 長型平台櫃
+    {t:'lockers',  x:260, y:209, w:21,  h:51},                          // 窄櫃
+    {t:'light',    cx:315, cy:205, r:8}                                 // 地面嵌燈
+  ]
+};
+
+let current = ROOM;
+
+/* ============================================================
+   2. 熱感應流動層
+      低解析熱場 (GW × GH) → ImageData → 放大平滑輸出
+   ============================================================ */
+const GW = 160, GH = 90;
+const VBW = 480, VBH = 260;           // 平面圖 viewBox（依 3D 圖比例）
+let   AR  = VBW / VBH;                // 顯示長寬比（隨視窗更新，讓熱暈等向擴散）
+const heat = document.getElementById('heatCanvas');
+const hctx = heat.getContext('2d');
+const buf = document.createElement('canvas');
+buf.width = GW; buf.height = GH;
+const bctx = buf.getContext('2d');
+const img = bctx.createImageData(GW, GH);
+
+/* 熱源＝床墊（被面）範圍：不含床頭板與枕頭區，其餘空間維持涼色 */
+let bedField = null;
+function loadSources(room){
+  const b = room.items.find(i => i.t === 'bed');
+  let x0,x1,y0,y1;
+  if((b.dir||'up') === 'left'){
+    x0 = b.x + b.w*0.30; x1 = b.x + b.w - 4;
+    y0 = b.y + b.h*0.10; y1 = b.y + b.h*0.90;
+  }else{
+    x0 = b.x + b.w*0.10; x1 = b.x + b.w*0.90;
+    y0 = b.y + b.h*0.30; y1 = b.y + b.h - 4;
+  }
+  bedField = {
+    cx:((x0+x1)/2)/VBW,
+    cy:((y0+y1)/2)/VBH,
+    hx:((x1-x0)/2)/VBW,
+    hy:((y1-y0)/2)/VBH
+  };
+}
+loadSources(current);
+
+/* jet 風格色階：深藍 → 藍 → 青 → 綠 → 黃 → 橘 → 紅 */
+const STOPS = [
+  [0.00,  4, 12, 46],
+  [0.18, 20, 66,198],
+  [0.34, 32,166,208],
+  [0.52, 84,190,124],
+  [0.68,238,212, 72],
+  [0.84,238,124, 50],
+  [1.00,228, 50, 44]
+];
+function ramp(v){
+  v = v < 0 ? 0 : v > 1 ? 1 : v;
+  for(let i=1;i<STOPS.length;i++){
+    if(v <= STOPS[i][0]){
+      const a = STOPS[i-1], b = STOPS[i];
+      const k = (v - a[0]) / (b[0] - a[0]);
+      return [a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k, a[3]+(b[3]-a[3])*k];
+    }
+  }
+  return [232,45,38];
+}
+
+let peak = 0;
+function drawHeat(time){
+  const t = time * 0.001;
+  const d = img.data;
+
+  const breathe = 1 + 0.028 * Math.sin(t * 0.75);       // 體溫起伏
+  const hx = bedField.hx * breathe;       // x 半徑（畫面比例於下方換算）
+  const hy = bedField.hy * breathe;
+  const SIG   = 0.052;                                   // 熱氣外擴距離（收斂在床鋪附近）
+  const inner = Math.min(hx, hy) * 0.95;
+  let mx = 0;
+
+  for(let y=0;y<GH;y++){
+    const fy = (y + 0.5) / GH;
+    for(let x=0;x<GW;x++){
+      const fx = (x + 0.5) / GW;
+
+      // 床鋪矩形的有號距離場（負值＝在床上）
+      const dx = (Math.abs(fx - bedField.cx) - hx) * AR;
+      const dy =  Math.abs(fy - bedField.cy) - hy;
+      const ox = dx > 0 ? dx : 0, oy = dy > 0 ? dy : 0;
+      let sd = Math.sqrt(ox*ox + oy*oy) + Math.min(Math.max(dx, dy), 0);
+
+      // 讓熱區邊緣緩慢流動
+      sd += 0.013 * Math.sin(t * 0.9 + fx * 8.5)
+          + 0.010 * Math.sin(t * 1.3 + fy * 11.0 + 1.7);
+
+      const shape = sd < 0
+        ? 0.86 + 0.14 * Math.min(1, -sd / inner)         // 床上：核心最熱
+        : 0.86 * Math.exp(-(sd*sd) / (2 * SIG * SIG));   // 床外：向外衰減
+
+      const v = 0.115 + 0.885 * shape
+              + 0.010 * Math.sin(t * 0.6 + fx * 5.0 + fy * 7.0);
+
+      if(v > mx) mx = v;
+      const c = ramp(v);
+      const o = (y*GW + x) * 4;
+      d[o]   = c[0];
+      d[o+1] = c[1];
+      d[o+2] = c[2];
+      d[o+3] = 255;
+    }
+  }
+  peak = mx;
+  bctx.putImageData(img, 0, 0);
+  hctx.clearRect(0,0,heat.width,heat.height);
+  hctx.imageSmoothingEnabled = true;
+  hctx.imageSmoothingQuality = 'high';
+  hctx.drawImage(buf, 0, 0, heat.width, heat.height);
+}
+
+function sizeCanvas(){
+  const r = heat.getBoundingClientRect();
+  if(r.height > 0) AR = r.width / r.height;      // 依實際顯示比例校正熱暈
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  heat.width  = Math.max(1, Math.round(r.width  * dpr));
+  heat.height = Math.max(1, Math.round(r.height * dpr));
+}
+window.addEventListener('resize', sizeCanvas);
+
+/* ============================================================
+   3. 平面圖向量層
+   ============================================================ */
+const NS   = 'http://www.w3.org/2000/svg';
+const LINE = 'rgba(168,208,255,.62)';   // 主線稿
+const SOFT = 'rgba(140,185,255,.34)';   // 次要線
+const FILL = 'rgba(6,18,48,.26)';       // 家具半透明填色（讓熱區透出）
+const BG   = '#020610';
+
+const el = (n,a)=>{ const e=document.createElementNS(NS,n); for(const k in a) if(a[k]!=null) e.setAttribute(k,a[k]); return e; };
+const R = (x,y,w,h,rx,o={}) => el('rect',{x,y,width:w,height:h,rx:rx??2,
+              fill:o.fill||FILL, stroke:o.stroke===null?null:(o.stroke||LINE),
+              'stroke-width':o.sw||1, 'stroke-dasharray':o.dash});
+const L = (x1,y1,x2,y2,o={}) => el('line',{x1,y1,x2,y2,
+              stroke:o.stroke||SOFT,'stroke-width':o.sw||1,'stroke-dasharray':o.dash,'stroke-linecap':'round'});
+const P = (d,o={}) => el('path',{d,fill:o.fill||'none',
+              stroke:o.stroke||LINE,'stroke-width':o.sw||1,'stroke-dasharray':o.dash,'stroke-linecap':'round'});
+const C = (cx,cy,r,o={}) => el('circle',{cx,cy,r,fill:o.fill||'none',
+              stroke:o.stroke||LINE,'stroke-width':o.sw||1});
+const G = a => el('g',a||{});
+
+/* 依室內設計平面圖慣例繪製的家具符號 */
+const SYM = {
+  /* 床：床頭板 + 床墊 + 枕頭 + 被面翻折線 */
+  bed(i){
+    const g=G(), {x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,4,{sw:1.2}));                                // 床墊
+    if((i.dir||'up')==='left'){                                          // 床頭朝左
+      const fold=x+w*0.34;
+      g.appendChild(R(x-8,y-4,8,h+8,3));                                 // 床頭板
+      g.appendChild(R(fold,y+3,w-(fold-x)-4,h-6,4,{fill:'rgba(120,175,255,.08)',stroke:SOFT}));
+      g.appendChild(L(fold,y+3,fold,y+h-3,{stroke:LINE}));
+      g.appendChild(L(fold+8,y+8,fold+8,y+h-8,{stroke:SOFT,dash:'2 4'}));
+      const pw=w*0.14;
+      if(i.pillows===2){
+        const ph=(h-18)/2;
+        g.appendChild(R(x+6,y+6,pw,ph,4,{stroke:SOFT}));
+        g.appendChild(R(x+6,y+12+ph,pw,ph,4,{stroke:SOFT}));
+      }else{
+        const ph=h*0.58;
+        g.appendChild(R(x+6,y+(h-ph)/2,pw,ph,4,{stroke:SOFT}));
+      }
+    }else{                                                               // 床頭朝上
+      const ph   = h*0.145;                     // 枕頭深度
+      const fold = y + ph + 12;                 // 被子翻折線
+      g.appendChild(R(x-5,y-9,w+10,9,3,{fill:'rgba(120,175,255,.10)'}));            // 床頭板
+      g.appendChild(R(x-3,y-1,w+6,h+3,4,{fill:'none',stroke:SOFT}));                // 床架外緣
+      g.appendChild(R(x+3,fold,w-6,h-(fold-y)-4,4,{fill:'rgba(120,175,255,.08)',stroke:SOFT})); // 被面
+      g.appendChild(L(x+3,fold,x+w-3,fold,{stroke:LINE,sw:1.3}));                   // 翻折
+      g.appendChild(L(x+3,fold+7,x+w-3,fold+7,{stroke:SOFT,dash:'3 5'}));
+      g.appendChild(L(x+w/2,fold+12,x+w/2,y+h-8,{stroke:'rgba(140,185,255,.18)',dash:'4 6'})); // 中線
+      g.appendChild(L(x+8,y+h-9,x+w-8,y+h-9,{stroke:SOFT,dash:'2 5'}));             // 床尾收邊
+      if(i.pillows===2){
+        const pw=(w-20)/2;
+        [x+7, x+13+pw].forEach(px=>{
+          g.appendChild(R(px,y+5,pw,ph,5,{fill:'rgba(180,215,255,.10)',stroke:SOFT}));
+          g.appendChild(R(px+4,y+8,pw-8,ph-6,4,{fill:'none',stroke:'rgba(140,185,255,.22)'}));
+        });
+      }else{
+        const pw=w*0.58, px=x+(w-pw)/2;
+        g.appendChild(R(px,y+5,pw,ph,5,{fill:'rgba(180,215,255,.10)',stroke:SOFT}));
+        g.appendChild(R(px+4,y+8,pw-8,ph-6,4,{fill:'none',stroke:'rgba(140,185,255,.22)'}));
+      }
+    }
+    return g;
+  },
+  /* 床頭櫃：櫃體 + 檯燈 */
+  nightstand(i){
+    const g=G(), {x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,2));
+    g.appendChild(C(x+w/2,y+h/2,Math.min(w,h)*0.26,{stroke:SOFT}));
+    return g;
+  },
+  /* 衣櫃：櫃體 + 吊桿虛線 + 門片分隔 */
+  wardrobe(i){
+    const g=G(), {x,y,w,h,face}=i;
+    g.appendChild(R(x,y,w,h,2));
+    if(face==='left'||face==='right'){
+      const lx = face==='left' ? x+8 : x+w-8;
+      g.appendChild(L(lx,y+3,lx,y+h-3,{dash:'4 4'}));
+      g.appendChild(L(x+2,y+h/2,x+w-2,y+h/2,{stroke:SOFT}));
+    }else{
+      const ly = face==='up' ? y+8 : y+h-8;
+      g.appendChild(L(x+3,ly,x+w-3,ly,{dash:'4 4'}));
+      g.appendChild(L(x+w/2,y+2,x+w/2,y+h-2,{stroke:SOFT}));
+    }
+    return g;
+  },
+  /* 書桌 / 化妝桌 */
+  desk(i){
+    const g=G(), {x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,2));
+    g.appendChild(L(x+4,y+h-7,x+w*0.55,y+h-7,{stroke:SOFT}));
+    g.appendChild(R(x+w*0.62,y+5,w*0.3,h-10,2,{stroke:SOFT,fill:'none'}));
+    return g;
+  },
+  /* 椅：座面圓 + 椅背弧 */
+  chair(i){
+    const g=G(), {cx,cy,r}=i;
+    g.appendChild(C(cx,cy,r,{stroke:SOFT}));
+    g.appendChild(P(`M ${cx-r} ${cy+2} A ${r} ${r} 0 0 0 ${cx+r} ${cy+2}`));
+    return g;
+  },
+  /* 五斗櫃 */
+  dresser(i){
+    const g=G(), {x,y,w,h}=i, n=i.n||3;
+    g.appendChild(R(x,y,w,h,2));
+    for(let k=1;k<n;k++) g.appendChild(L(x+w*k/n,y+2,x+w*k/n,y+h-2,{stroke:SOFT}));
+    return g;
+  },
+  /* 上櫃 / 層架 */
+  shelf(i){
+    const g=G(), {x,y,w,h}=i, n=i.n||3;
+    g.appendChild(R(x,y,w,h,2));
+    for(let k=1;k<n;k++) g.appendChild(L(x+w*k/n,y,x+w*k/n,y+h,{stroke:SOFT}));
+    return g;
+  },
+  /* 沙發：背 + 扶手 + 坐墊 */
+  sofa(i){
+    const g=G(), {x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,6));
+    g.appendChild(R(x+4,y+4,w-8,h*0.28,3,{stroke:SOFT,fill:'none'}));     // 靠背
+    g.appendChild(L(x+w/3,y+h*0.34,x+w/3,y+h-4,{stroke:SOFT}));
+    g.appendChild(L(x+w*2/3,y+h*0.34,x+w*2/3,y+h-4,{stroke:SOFT}));
+    return g;
+  },
+  table(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,8));
+    g.appendChild(R(x+6,y+5,w-12,h-10,6,{stroke:SOFT,fill:'none'}));
+    return g; },
+  /* 電視：薄櫃 + 螢幕 + 立座 */
+  tv(i){ const g=G(),{x,y,w}=i;
+    g.appendChild(R(x,y,w,7,1,{sw:1.2}));
+    g.appendChild(L(x+w/2,y+7,x+w/2,y+12,{stroke:SOFT}));
+    g.appendChild(L(x+w/2-9,y+12,x+w/2+9,y+12,{stroke:SOFT}));
+    return g; },
+  /* 地毯：虛線範圍 */
+  rug(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,10,{fill:'rgba(120,175,255,.05)',stroke:'rgba(150,195,255,.28)',dash:'6 5'}));
+    return g; },
+  /* 植栽 */
+  plant(i){ const g=G(),{cx,cy,r}=i;
+    g.appendChild(C(cx,cy,r,{stroke:SOFT}));
+    for(let k=0;k<5;k++){ const a=k*Math.PI*2/5;
+      g.appendChild(L(cx,cy,cx+Math.cos(a)*r*0.8,cy+Math.sin(a)*r*0.8,{stroke:SOFT})); }
+    return g; },
+  /* 床頭木飾牆：直向拼板 + 上下收邊 + 中央壁龕 */
+  panel(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,1,{fill:'rgba(120,175,255,.07)'}));
+    g.appendChild(L(x,y+4,x+w,y+4,{stroke:SOFT}));
+    g.appendChild(L(x,y+h-4,x+w,y+h-4,{stroke:SOFT}));
+    const n=14;
+    for(let k=1;k<n;k++){
+      const px=x+w*k/n;
+      g.appendChild(L(px,y+4,px,y+h-4,{stroke:'rgba(140,185,255,.20)'}));
+    }
+    // 床頭正後方的壁龕
+    g.appendChild(R(x+w*0.34,y+3,w*0.32,h-6,1,{fill:'rgba(2,8,24,.35)',stroke:LINE}));
+    return g; },
+
+  /* 高櫃 / 檯面：櫃體 + 對開門片 + 把手 + 內部吊桿 */
+  cabinet(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,2,{sw:1.2,fill:'rgba(120,175,255,.09)'}));
+    g.appendChild(R(x+3,y+3,w-6,h-6,1,{fill:'none',stroke:SOFT}));
+    g.appendChild(L(x+3,y+h/2,x+w-3,y+h/2,{stroke:LINE}));              // 門片分縫
+    g.appendChild(L(x+w-9,y+h/2-11,x+w-9,y+h/2-3,{stroke:LINE,sw:1.4}));// 把手
+    g.appendChild(L(x+w-9,y+h/2+3,x+w-9,y+h/2+11,{stroke:LINE,sw:1.4}));
+    g.appendChild(L(x+9,y+6,x+9,y+h-6,{stroke:SOFT,dash:'4 4'}));       // 吊桿
+    return g; },
+
+  /* 開放層架：外框 + 層板 + 書冊分隔 */
+  rack(i){ const g=G(),{x,y,w,h}=i, n=3;
+    g.appendChild(R(x,y,w,h,2,{sw:1.2}));
+    for(let k=1;k<n;k++){
+      const py=y+h*k/n;
+      g.appendChild(L(x+2,py,x+w-2,py,{stroke:LINE}));
+    }
+    for(let k=0;k<n;k++){
+      const py=y+h*k/n;
+      for(let m=1;m<4;m++)
+        g.appendChild(L(x+4+(w-8)*m/4,py+3,x+4+(w-8)*m/4,py+h/n-3,{stroke:'rgba(140,185,255,.22)'}));
+    }
+    return g; },
+
+  /* 圓凳：座面 + 內圈 + 十字分割 */
+  stool(i){ const g=G(),{cx,cy,r}=i;
+    g.appendChild(C(cx,cy,r,{sw:1.2}));
+    g.appendChild(C(cx,cy,r*0.62,{stroke:SOFT}));
+    g.appendChild(C(cx,cy,r*0.2,{stroke:SOFT}));
+    return g; },
+
+  /* 長型平台櫃：檯面 + 內凹層 + 抽屜盒 + 燈帶 */
+  console(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,2,{sw:1.3}));
+    g.appendChild(R(x+2,y+2,w-4,h-4,1,{fill:'none',stroke:SOFT}));
+    // 左側抽屜盒
+    g.appendChild(R(x+5,y+5,34,h-10,2,{fill:'rgba(120,175,255,.10)',stroke:LINE}));
+    g.appendChild(R(x+10,y+11,24,h-22,1,{fill:'none',stroke:SOFT}));
+    // 內凹展示層
+    const rx=x+43, rw=w-48;
+    g.appendChild(R(rx,y+6,rw,h-12,1,{fill:'rgba(1,5,18,.55)',stroke:LINE}));
+    for(let k=1;k<4;k++)
+      g.appendChild(L(rx+rw*k/4,y+6,rx+rw*k/4,y+h-6,{stroke:'rgba(140,185,255,.20)',dash:'3 4'}));
+    // 上緣燈帶
+    for(let k=0;k<5;k++)
+      g.appendChild(C(rx+rw*(k+0.5)/5,y+11,1.6,{stroke:'rgba(200,228,255,.55)'}));
+    return g; },
+
+  /* 窄櫃：兩片門板 */
+  lockers(i){ const g=G(),{x,y,w,h}=i;
+    g.appendChild(R(x,y,w,h,2,{sw:1.2}));
+    g.appendChild(L(x,y+h/2,x+w,y+h/2,{stroke:LINE}));
+    g.appendChild(R(x+3,y+4,w-6,h/2-8,1,{fill:'rgba(150,195,255,.12)',stroke:SOFT}));
+    g.appendChild(R(x+3,y+h/2+4,w-6,h/2-8,1,{fill:'rgba(150,195,255,.12)',stroke:SOFT}));
+    return g; },
+
+  /* 地面嵌燈：光暈 + 十字 */
+  light(i){ const g=G(),{cx,cy,r}=i;
+    g.appendChild(C(cx,cy,r,{stroke:SOFT,dash:'3 3'}));
+    g.appendChild(C(cx,cy,r*0.35,{stroke:'rgba(200,228,255,.55)'}));
+    g.appendChild(L(cx-r*1.5,cy,cx+r*1.5,cy,{stroke:'rgba(140,185,255,.20)'}));
+    g.appendChild(L(cx,cy-r*1.5,cx,cy+r*1.5,{stroke:'rgba(140,185,255,.20)'}));
+    return g; },
+  /* 窗：切斷牆體 + 玻璃線 */
+  window(i){
+    const g=G();
+    if(i.dir==='h'){
+      g.appendChild(R(i.x,i.y,i.len,10,0,{fill:BG,stroke:null}));
+      g.appendChild(L(i.x,i.y+5,i.x+i.len,i.y+5,{stroke:'rgba(190,225,255,.85)'}));
+      g.appendChild(L(i.x,i.y,i.x,i.y+10,{stroke:LINE}));
+      g.appendChild(L(i.x+i.len,i.y,i.x+i.len,i.y+10,{stroke:LINE}));
+    }else{
+      g.appendChild(R(i.x,i.y,10,i.len,0,{fill:BG,stroke:null}));
+      g.appendChild(L(i.x+5,i.y,i.x+5,i.y+i.len,{stroke:'rgba(190,225,255,.85)'}));
+      g.appendChild(L(i.x,i.y,i.x+10,i.y,{stroke:LINE}));
+      g.appendChild(L(i.x,i.y+i.len,i.x+10,i.y+i.len,{stroke:LINE}));
+    }
+    return g;
+  },
+  /* 門：牆體開口 + 門片 + 90° 開闔弧線 */
+  door(i){
+    const g=G();
+    if(i.gap) g.appendChild(R(i.gap.x,i.gap.y,i.gap.w,i.gap.h,0,{fill:BG,stroke:null}));
+    const d=G({transform:`translate(${i.x},${i.y}) rotate(${i.rot||0})`});
+    d.appendChild(L(0,0,i.r,0,{stroke:LINE,sw:1.4}));                        // 門片
+    d.appendChild(P(`M ${i.r} 0 A ${i.r} ${i.r} 0 0 1 0 ${i.r}`,{stroke:SOFT,dash:'3 4'}));
+    g.appendChild(d);
+    return g;
+  }
+};
+
+function drawPlan(room){
+  const svg = document.getElementById('planSvg');
+  svg.innerHTML = '';
+  const root = G();
+
+  // 牆體斜線剖面 pattern
+  const defs = el('defs',{});
+  const pat  = el('pattern',{id:'wallHatch',width:6,height:6,
+                             patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
+  pat.appendChild(el('rect',{width:6,height:6,fill:'rgba(90,140,235,.14)'}));
+  pat.appendChild(el('line',{x1:0,y1:0,x2:0,y2:6,stroke:'rgba(190,220,255,.40)','stroke-width':1}));
+  defs.appendChild(pat);
+  root.appendChild(defs);
+
+  // 地板：木地板拼接線
+  (room.floors||[]).forEach(f=>{
+    const [fx,fy,fw,fh] = f;
+    root.appendChild(R(fx,fy,fw,fh,1,{fill:'rgba(70,120,220,.05)',stroke:'rgba(130,180,255,.22)'}));
+    for(let py=fy+8; py<fy+fh-2; py+=8)
+      root.appendChild(L(fx+1,py,fx+fw-1,py,{stroke:'rgba(120,170,255,.07)'}));
+    for(let k=1;k<5;k++)
+      root.appendChild(L(fx+fw*k/5,fy+1,fx+fw*k/5,fy+fh-1,{stroke:'rgba(120,170,255,.05)'}));
+  });
+
+  // 相鄰暗空間
+  (room.zones||[]).forEach(z=>{
+    root.appendChild(R(z[0],z[1],z[2],z[3],1,{
+      fill:'rgba(0,2,10,.62)', stroke:'rgba(120,170,255,.16)'}));
+  });
+
+  // 牆體剖面（平面圖 poché）
+  (room.walls||[]).forEach(w=>{
+    root.appendChild(R(w[0],w[1],w[2],w[3],0,{
+      fill:'url(#wallHatch)', stroke:'rgba(205,230,255,.60)', sw:1}));
+  });
+
+  room.items.forEach((it,idx)=>{
+    const make = SYM[it.t];
+    if(!make) return;
+    const g = make(it);
+    g.style.opacity = 0;
+    g.style.animation = `${it.dim?'fadeInDim':'fadeIn'} .45s ${idx*0.04}s forwards`;
+    root.appendChild(g);
+  });
+  svg.appendChild(root);
+}
+const styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes fadeIn{to{opacity:1}}@keyframes fadeInDim{to{opacity:.38}}';
+document.head.appendChild(styleEl);
+
+/* ============================================================
+   4. 資料層 DataSource（模擬）
+      → 之後改為 WebSocket：new WebSocket('ws://localhost:9980')
+   ============================================================ */
+const hist = { t:[], h:[], n:[] };
+const state = { t:0, h:0, n:0 };
+
+function seedFrom(room){
+  state.t = room.base.t; state.h = room.base.h; state.n = room.base.n;
+  hist.t = Array(40).fill(state.t);
+  hist.h = Array(40).fill(state.h);
+  hist.n = Array(40).fill(state.n);
+}
+seedFrom(current);
+
+function tickData(){
+  const b = current.base;
+  // 帶回歸的隨機漫步，數值不會跑掉
+  state.t += (b.t - state.t)*0.10 + (Math.random()-0.5)*0.22;
+  state.h += (b.h - state.h)*0.10 + (Math.random()-0.5)*1.4;
+  state.n += (b.n - state.n)*0.14 + (Math.random()-0.5)*3.2;
+
+  push(hist.t, state.t); push(hist.h, state.h); push(hist.n, state.n);
+
+  document.getElementById('tVal').textContent = state.t.toFixed(1);
+  document.getElementById('hVal').textContent = Math.round(state.h);
+  document.getElementById('nVal').textContent = Math.round(state.n);
+  document.getElementById('peakLabel').textContent = '峰值 ' + Math.min(100, Math.round(peak*100)) + '%';
+
+  spark('tSpark', hist.t, '#5fa4ff');
+  spark('hSpark', hist.h, '#4cc3e6');
+  spark('nSpark', hist.n, '#8fa2f2');
+
+  updateScore();
+}
+function push(a,v){ a.push(v); if(a.length>40) a.shift(); }
+
+/* 床位適合度：溫度 26/濕度 50/噪音 30 為最佳，偏離則扣分 */
+function updateScore(){
+  const pen = Math.abs(state.t-24.5)*7 + Math.abs(state.h-55)*0.7 + Math.max(0,state.n-32)*1.1;
+  const s = Math.max(0, Math.min(100, Math.round(100 - pen)));
+  document.getElementById('sVal').textContent = s;
+  document.getElementById('sBar').style.width = s + '%';
+  document.getElementById('sText').textContent =
+    s >= 85 ? '環境穩定，適合休息' :
+    s >= 70 ? '尚可，建議微調空調' :
+    s >= 50 ? '溫濕度偏移，需要調整' : '環境不佳，建議更換床位';
+}
+
+/* 迷你趨勢線 */
+function spark(id, data, color){
+  const c = document.getElementById(id);
+  const dpr = Math.min(window.devicePixelRatio||1,2);
+  const r = c.getBoundingClientRect();
+  if(r.width === 0) return;
+  c.width = r.width*dpr; c.height = r.height*dpr;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  const mn = Math.min(...data), mx = Math.max(...data), sp = (mx-mn)||1;
+  const px = i => (i/(data.length-1))*c.width;
+  const py = v => c.height - 3*dpr - ((v-mn)/sp)*(c.height-6*dpr);
+
+  const grad = ctx.createLinearGradient(0,0,0,c.height);
+  grad.addColorStop(0, color+'72'); grad.addColorStop(1, color+'00');
+  ctx.beginPath(); ctx.moveTo(0,c.height);
+  data.forEach((v,i)=>ctx.lineTo(px(i),py(v)));
+  ctx.lineTo(c.width,c.height); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  data.forEach((v,i)=> i? ctx.lineTo(px(i),py(v)) : ctx.moveTo(px(i),py(v)));
+  ctx.strokeStyle = color; ctx.lineWidth = 1.4*dpr;
+  ctx.shadowColor = color; ctx.shadowBlur = 8*dpr;
+  ctx.stroke();
+}
+
+/* ============================================================
+   5. 啟動
+   ============================================================ */
+document.getElementById('planTitle').textContent = ROOM.name;
+document.getElementById('planMeta').textContent  = ROOM.meta;
+drawPlan(current);
+sizeCanvas();
+tickData();
+setInterval(tickData, 1000);
+
+let last = 0;
+function loop(ts){
+  if(ts - last > 33){ drawHeat(ts); last = ts; }   // ~30 fps
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
