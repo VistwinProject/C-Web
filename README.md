@@ -1,6 +1,14 @@
+# TouchDesigner OSC 三幕同步
 
-## TouchDesigner OSC 測試
-啟動：`python tools/osc_bridge.py`（Python 標準函式庫，HTTP 127.0.0.1:8766）。網頁左下角可改轉送服務、TD 私有 IPv4、UDP Port、OSC 位址；預設同機 9000，設定保留於瀏覽器。
-第 15 秒進入熱區扫描送 `/c/heat/active` int32 `1`，第 30 秒離開送 int32 `0`。跳幕、重新開始也依進出狀態送出；暫停保留目前狀態；關閉自動模式送 0。手動測試只送訊號；「預覽熱區」跳至 15 秒並播放。失敗不自動重送，以免延後觸發舊事件。
-TD 使用 OSC In DAT，Active 開、Network Port 9000（或介面指定值），收到 `/c/heat/active 1` 開始熱區、0 離開。官方參考：https://derivative.ca/UserGuide/OSC_In_DAT 。UDP 已送出僅代表本機轉送成功，不代表 TD 已接收。
-轉送服務只監聽本機；允許來源為 localhost:8765、127.0.0.1:8765 和此專案 GitHub Pages。GitHub Pages 本身不提供 UDP，現場仍需此服務；瀏覽器可能另需允許本機網路存取。跨電腦時 TD 端需允許所設定的 UDP 接收埠。關閉網頁前可按「測試離開」清除 TD 狀態。
+啟動 `python tools/osc_bridge.py`，HTTP 轉送服務為 127.0.0.1:8766。網頁使用本機 8765 HTTP 服務。
+
+目標預設 `127.0.0.1:8970`，OSC 位址 `/c/scene`，型別 int32：
+- 01 看見環境 = 0
+- 02 安心入睡 = 1
+- 03 自然醒來 = 2
+
+自動播放在 30／60 秒邊界前預設 100ms 發送，可調 0–1000ms；這是人工校準值，非已測得的 TD 延遲。手動跳幕立即送目標值；第三幕中再按 03 回第一幕並送 0。重播送起始幕狀態。完整分鏡結束仍停在第三幕，按 03 或重播才回 0。暫停保留已送狀態。
+
+網頁首次載入會同步目前幕。面板可手動測試 0、1、2。新版設定使用獨立儲存鍵，不沿用舊 9000／熱區位址。關閉自動同步不送額外幕值。發送失敗不重試；有進行中的請求時只保留最新待送狀態，避免舊幕堆積。UDP 不保證接收；HTTP 往返時間不等於 TD 接收延遲。
+
+TD OSC In CHOP：Active On、Protocol Messaging (UDP)、Network Port 8970、OSC Address Scope *、Queued Off。觀察 c/scene 通道是否依序 0 → 1 → 2 → 0。

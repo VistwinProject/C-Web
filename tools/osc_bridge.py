@@ -12,8 +12,8 @@ ALLOWED_ORIGINS = {'http://127.0.0.1:8765', 'http://localhost:8765', 'https://vi
 def packet(address, value):
     if not isinstance(address, str) or not re.fullmatch(r'/[A-Za-z0-9_/-]{1,120}', address):
         raise ValueError('Invalid OSC address')
-    if type(value) is not int or value not in (0, 1):
-        raise ValueError('Value must be integer 0 or 1')
+    if type(value) is not int or value not in (0, 1, 2):
+        raise ValueError('Value must be integer 0, 1 or 2')
     def padded(s):
         data=s.encode('ascii')+b'\0'
         return data+b'\0'*((-len(data))%4)

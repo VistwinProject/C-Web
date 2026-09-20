@@ -1,9 +1,9 @@
-import {syncHeatOSC} from './osc-control.js';
+import {syncSceneOSC} from './osc-control.js?v=2';
 import {startOrb,endOrb,prepareOrbAudio} from './voice-orb.js';
 import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 
-import {config} from './scene-config.js';
+import {config} from './scene-config.js?v=ac-1';
 
 const $=id=>document.getElementById(id), viewport=$('viewport');
 let renderer;
@@ -27,8 +27,19 @@ function bedEnvelope(bounds){const group=new THREE.Group(),lo=bounds.min,hi=boun
  for(const [x,z] of [[lo.x+r,lo.z],[hi.x-r,lo.z],[lo.x+r,hi.z],[hi.x-r,hi.z]])group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,lo.y,z),new THREE.Vector3(x,hi.y,z)]),new THREE.LineBasicMaterial({color:0x719bd1,transparent:true,opacity:.35})));scene.add(group);}
 const bedLabel=label('原模型床組',[-.42,.65,-.65]);
 function vent(name,position,color){const group=new THREE.Group();group.position.fromArray(position);scene.add(group);box(name,[.35,.07,.24],[0,0,0],mat(0xc6cfca,.5,.4),group);for(let i=0;i<6;i++)box('Grille',[.27,.008,.012],[0,-.04,-.09+i*.035],mat(color),group);return group;}
-const freshVent=vent('Fresh supply',config.fresh.position,0x75b9f2);
+const freshVent=vent('Fresh supply',config.fresh.position,0x9ccfc5);
+freshVent.traverse(o=>{if(o.material)o.material.color.set(0x9ccfc5);});
 const freshLabel=label('新風進氣 · 依圖定位',[...config.fresh.position],'fresh');freshLabel.pos.y+=.18;
+// Ceiling cassette traced from the white square in the supplied top-view video.
+const acVent=new THREE.Group();acVent.position.fromArray(config.ac.position);scene.add(acVent);
+box('AC outer frame',config.ac.size,[0,0,0],mat(),acVent);
+// Rear (+Z / headboard wall) side outlet; underside has no discharge grille.
+const acOutletZ=config.ac.size[2]/2+.004;
+box('AC rear grille',[.34,.058,.008],[0,0,acOutletZ],mat(),acVent);
+for(let i=0;i<3;i++)box('AC rear louver',[.30,.004,.012],[0,-.018+i*.018,acOutletZ+.003],mat(),acVent);
+acVent.traverse(o=>{if(o.material){o.material.color.set(0x82baff);o.material.opacity=.8;}});
+const acLabel=label('冷氣 · 窗邊出風口',[.68,2.79,.03],'ac');
+
 
 // Separate wall projection and existing digital-window video reference.
 const projectionCanvas=document.createElement('canvas');projectionCanvas.width=768;projectionCanvas.height=432;const pc=projectionCanvas.getContext('2d'),projectionTexture=new THREE.CanvasTexture(projectionCanvas);projectionTexture.colorSpace=THREE.SRGBColorSpace;
@@ -149,10 +160,10 @@ scanSweep.renderOrder=10;scene.add(scanSweep);
 
 // Curves describe illustrative flow paths, not a fluid solver. Particles move in the
 // directions of window-side rising warmth and fresh-air dispersion only.
-const flowGroup=new THREE.Group();scene.add(flowGroup);let paths=[],supplyParticles=[];
+const flowGroup=new THREE.Group();scene.add(flowGroup);let paths=[],supplyParticles=[],acParticles=[];
 const glowCanvas=document.createElement('canvas');glowCanvas.width=glowCanvas.height=64;const gc=glowCanvas.getContext('2d'),gr=gc.createRadialGradient(32,32,1,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.18,'rgba(255,255,255,.9)');gr.addColorStop(.45,'rgba(255,255,255,.25)');gr.addColorStop(1,'rgba(255,255,255,0)');gc.fillStyle=gr;gc.fillRect(0,0,64,64);const glowTexture=new THREE.CanvasTexture(glowCanvas);
 function addPath(points,color,kind,phaseOffset){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const line=new THREE.Mesh(new THREE.TubeGeometry(curve,48,.008,5,false),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.45,depthWrite:false}));flowGroup.add(line);const beads=[];for(let i=0;i<5;i++){const bead=new THREE.Mesh(new THREE.SphereGeometry(.026,8,6),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.85}));const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color,transparent:true,opacity:.9,depthWrite:false,blending:THREE.AdditiveBlending}));glow.scale.set(.15,.15,1);bead.add(glow);flowGroup.add(bead);beads.push(bead);}const arrow=new THREE.Mesh(new THREE.ConeGeometry(.035,.12,5),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.8}));flowGroup.add(arrow);const trail=new THREE.Mesh(new THREE.TubeGeometry(curve,48,.017,6,false),new THREE.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{phase:{value:0},strength:{value:1},tint:{value:new THREE.Color(color)}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec2 vUv;uniform float phase;uniform float strength;uniform vec3 tint;void main(){float d=fract(vUv.x-phase);float a=pow(1.-d,5.)*strength;gl_FragColor=vec4(tint,min(a*1.35,1.));}' }));flowGroup.add(trail);paths.push({curve,line,beads,arrow,trail,kind,offset:phaseOffset,progress:phaseOffset});}
-function rebuildFlows(){for(const child of [...flowGroup.children]){child.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});flowGroup.remove(child);}paths=[];supplyParticles=[];
+function rebuildFlows(){for(const child of [...flowGroup.children]){child.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});flowGroup.remove(child);}paths=[];supplyParticles=[];acParticles=[];
 const fx=freshVent.position.x,fy=freshVent.position.y,fz=freshVent.position.z;
 // Independently seeded parcels: broadening, decelerating and fading mixing plume.
 // No fixed blue tubes, synchronized strips, or arrows that imply measured streamlines.
@@ -165,13 +176,23 @@ for(let i=0;i<110;i++){
  const size=.055+rand()*.055;sprite.scale.set(size,size,1);flowGroup.add(sprite);
  supplyParticles.push({sprite,curve,age:rand(),rate:.023+rand()*.019,seed:rand()*20,size});
 }
+// Separate blue cooling plume; source stays between the window and bed.
+for(let i=0;i<100;i++){
+ const origin=new THREE.Vector3(...config.ac.position).add(new THREE.Vector3((rand()-.5)*.30,(rand()-.5)*.038,acOutletZ+.012));
+ const dx=(rand()-.5)*.95,dz=.78+rand()*.28,drop=.22+rand()*.5;
+ // Start horizontally toward the rear wall, then broaden and gently descend.
+ const curve=new THREE.CubicBezierCurve3(origin,origin.clone().add(new THREE.Vector3(0,0,.32)),origin.clone().add(new THREE.Vector3(dx*.4,-drop*.2,dz*.8)),origin.clone().add(new THREE.Vector3(dx,-drop,dz)));
+ const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTexture,color:0x75afff,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
+ const size=.05+rand()*.045;sprite.scale.set(size,size,1);flowGroup.add(sprite);
+ acParticles.push({sprite,curve,age:rand(),rate:.035+rand()*.02,seed:rand()*20,size});
+}
 for(let i=0;i<6;i++){const z=-.18+i*.18,h=.62+(i%2)*.09;addPath([[1.73,h,z],[1.69,1.05,z+.018],[1.71,1.48,z-.025],[1.65,1.92,z+.025],[1.47,2.24,z+.04],[1.12,2.44,z+.08]],0xf4ae55,'warm',i*.12);}
 }
 
 rebuildFlows();
 function animateFlows(dt,s){flowGroup.visible=flowVisible;
  const day=periodAt(time)!=='night';
- const supplyColor=new THREE.Color(fresh>s.temp+.5?0xc68a37:day?0x357fae:0x8bcdff);
+ const supplyColor=new THREE.Color(day?0x619e96:0xa4d9ce);
  for(const p of supplyParticles){
   if(playing&&s.power>0)p.age=(p.age+dt*p.rate*(.5+.5*s.power))%1;
   const age=p.age,u=1-Math.pow(1-age,1.35),pos=p.curve.getPoint(u),mix=Math.pow(u,1.4);
@@ -183,14 +204,24 @@ function animateFlows(dt,s){flowGroup.visible=flowVisible;
   p.sprite.material.opacity=s.power>0?fade*(.58+.30*s.power):0;
   const radius=p.size*(1+u*.55);p.sprite.scale.set(radius,radius,1);
  }
+ const acPower=.45+.55*s.power;
+ for(const p of acParticles){
+  if(playing)p.age=(p.age+dt*p.rate*(.6+.4*acPower))%1;
+  const u=1-Math.pow(1-p.age,1.3),pos=p.curve.getPoint(u);
+  pos.z+=Math.sin(u*8+p.seed)*.075*u;pos.x+=Math.cos(u*7+p.seed)*.06*u;
+  p.sprite.position.copy(pos);p.sprite.material.color.set(day?0x397fd3:0x76afff);
+  p.sprite.material.blending=day?THREE.NormalBlending:THREE.AdditiveBlending;
+  p.sprite.material.opacity=smooth(p.age/.08)*(1-smooth((p.age-.65)/.35))*(.5+.3*acPower);
+  const radius=p.size*(1+u*.7);p.sprite.scale.set(radius,radius,1);
+ }
  for(const p of paths){const warm=p.kind==='warm',opacity=warm?Math.min(1,s.solar*1.2):(s.power>0?.6+.4*s.power:0),speed=warm?.022:(.018+s.power*.022);
  if(!warm){const color=new THREE.Color(fresh>s.temp+.5?0xe7aa63:0x75b9f2);p.line.material.color.copy(color);p.trail.material.uniforms.tint.value.copy(color);p.arrow.material.color.copy(color);for(const bead of p.beads){bead.material.color.copy(color);bead.children[0].material.color.copy(color);}}
  if(playing)p.progress=(p.progress+dt*speed)%1; p.line.material.opacity=(warm?.15:.18)*opacity;p.trail.material.uniforms.phase.value=p.progress;p.trail.material.uniforms.strength.value=opacity;
  for(let i=0;i<p.beads.length;i++){const t=(p.progress+i/5)%1;p.beads[i].position.copy(p.curve.getPoint(t));p.beads[i].material.opacity=.95*opacity;p.beads[i].children[0].material.opacity=.85*opacity;}
  const t=p.progress;p.arrow.position.copy(p.curve.getPoint(t));p.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),p.curve.getTangent(t).normalize());p.arrow.material.opacity=.65*opacity;
 }}
-function update(){syncHeatOSC(time>=15&&time<30);updateNarration();const s=sample(time),p=Math.min(5,Math.floor(time/15));if(p!==phase){phase=p;$('phaseNumber').textContent=`0${Math.floor(p/2)+1} / 03`;$('phaseTitle').textContent=narration[Math.floor(p/2)][1].split(' · ')[1];$('phaseText').textContent=descriptions[p][1];document.querySelectorAll('button[data-phase]').forEach((b,i)=>b.classList.toggle('active',i===Math.floor(p/2)));}
-$('temperature').textContent=s.temp.toFixed(1);$('humidity').textContent=Math.round(s.rh);$('noise').textContent=Math.round(s.noise);$('humidityBar').style.width=s.rh+'%';const stable=Math.abs(s.temp-target)<1.2&&s.cool>.85;$('bedStatus').textContent=s.temp>27?'偏暖':stable?'平穩':'調節中';$('bedStatus').style.color=periodAt(time)==='night'?(s.temp>27?'#edbc7b':'#a7d3ff'):(s.temp>27?'#93631f':'#306a89');$('bedDetail').textContent=stable?'接近本次展示目標':s.power>0?'氣流正在改善床位熱感':'等待環境調節';$('freshReadout').textContent=s.power>0?`${fresh.toFixed(1)}°C · ${Math.round(s.power*100)}%`:'待機';$('time').textContent=`${String(Math.floor(time/60)).padStart(2,'0')}:${String(Math.floor(time%60)).padStart(2,'0')} / 01:30`;$('progress').style.width=(time/90*100)+'%';$('viewport').dataset.simulationTime=time.toFixed(2);$('viewport').dataset.phase=String(p);$('viewport').dataset.bedTemperature=s.temp.toFixed(2);
+function update(){updateNarration();const s=sample(time),p=Math.min(5,Math.floor(time/15));if(p!==phase){phase=p;$('phaseNumber').textContent=`0${Math.floor(p/2)+1} / 03`;$('phaseTitle').textContent=narration[Math.floor(p/2)][1].split(' · ')[1];$('phaseText').textContent=descriptions[p][1];document.querySelectorAll('button[data-phase]').forEach((b,i)=>b.classList.toggle('active',i===Math.floor(p/2)));}
+$('temperature').textContent=s.temp.toFixed(1);$('humidity').textContent=Math.round(s.rh);$('noise').textContent=Math.round(s.noise);$('humidityBar').style.width=s.rh+'%';const stable=Math.abs(s.temp-target)<1.2&&s.cool>.85;$('bedStatus').textContent=s.temp>27?'偏暖':stable?'平穩':'調節中';$('bedStatus').style.color=periodAt(time)==='night'?(s.temp>27?'#edbc7b':'#a7d3ff'):(s.temp>27?'#93631f':'#306a89');$('bedDetail').textContent=stable?'接近本次展示目標':s.power>0?'氣流正在改善床位熱感':'等待環境調節';$('acReadout').textContent='藍色送風 · 示意';$('freshReadout').textContent=s.power>0?`${fresh.toFixed(1)}°C · ${Math.round(s.power*100)}%`:'待機';$('time').textContent=`${String(Math.floor(time/60)).padStart(2,'0')}:${String(Math.floor(time%60)).padStart(2,'0')} / 01:30`;$('progress').style.width=(time/90*100)+'%';$('viewport').dataset.simulationTime=time.toFixed(2);$('viewport').dataset.phase=String(p);$('viewport').dataset.bedTemperature=s.temp.toFixed(2);
 const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},${(35-(sample(t).temp-19)/20*30).toFixed(1)}`);}$('trend').firstElementChild.setAttribute('d',points.length?'M'+points.join(' L'):'');drawHeat(s);projectionDraw(s);
  const next=periodAt(time);if(next!==period||document.body.dataset.period!==next){period=next;document.body.dataset.period=next;grid.material.opacity=next!=="night"?.05:.22;
  scene.traverse(o=>{if(!o.isLine||o===grid)return;const m=o.material;if(!m.userData.baseColor){m.userData.baseColor=m.color.clone();m.userData.baseOpacity=m.opacity;}m.color.copy(m.userData.baseColor);m.opacity=m.userData.baseOpacity;if(next!=='night'){m.color.lerp(new THREE.Color(0x365a70),.6);m.opacity=Math.min(.85,m.opacity*2.1);}});
@@ -213,19 +244,18 @@ const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},
  windowGlow.material.opacity=.08+.16*s.solar;
  for(const point of lightMarkers.children)point.material.opacity=p===3?.65:.95;
 }
-function frame(now){const dt=Math.max(0,Math.min((now-last)/1000,.1));last=now;if(playing){time+=dt;if(time>=ranges[version][1]){if(version==='story'){time=89.999;playing=false;showComplete=true;endOrb();syncPlay();syncVoice();}else{time=ranges[version][0];phase=-1;}}}if(Math.abs(time-lastUpdate)>.12||lastUpdate<0){update();lastUpdate=time;}animateFlows(dt,sample(time));for(const l of labels){const p=l.pos.clone().project(camera);l.el.style.left=(p.x*.5+.5)*viewport.clientWidth+'px';l.el.style.top=(-p.y*.5+.5)*viewport.clientHeight+'px';l.el.hidden=p.z>1;}renderer.render(scene,camera);requestAnimationFrame(frame);}
+function frame(now){const dt=Math.max(0,Math.min((now-last)/1000,.1));last=now;if(playing){time+=dt;if(time>=ranges[version][1]){if(version==='story'){time=89.999;playing=false;showComplete=true;endOrb();syncPlay();syncVoice();}else{time=ranges[version][0];phase=-1;}}}syncSceneOSC(time,playing,version);if(Math.abs(time-lastUpdate)>.12||lastUpdate<0){update();lastUpdate=time;}animateFlows(dt,sample(time));for(const l of labels){const p=l.pos.clone().project(camera);l.el.style.left=(p.x*.5+.5)*viewport.clientWidth+'px';l.el.style.top=(-p.y*.5+.5)*viewport.clientHeight+'px';l.el.hidden=p.z>1;}renderer.render(scene,camera);requestAnimationFrame(frame);}
 new ResizeObserver(()=>{const w=viewport.clientWidth,h=viewport.clientHeight;renderer.setSize(w,h);const aspect=w/h,half=Math.max(2.5,3.1/aspect);camera.left=-half*aspect;camera.right=half*aspect;camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();}).observe(viewport);
 function refresh(){lastUpdate=-1;update();}
 function syncPlay(){ $('playPause').textContent=playing?'Ⅱ 暫停':'▶ 播放';}
-$('playPause').onclick=()=>{if(showComplete){$('restart').click();return;}playing=!playing;syncVoice(true);syncPlay();};$('restart').onclick=()=>{showComplete=false;endOrb();time=ranges[version][0];phase=-1;playing=true;refresh();syncPlay();};document.querySelectorAll('button[data-phase]').forEach(b=>b.onclick=()=>{showComplete=false;version='story';document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));time=Number(b.dataset.phase)*30+.05;phase=-1;refresh();});
+$('playPause').onclick=()=>{if(showComplete){$('restart').click();return;}playing=!playing;syncVoice(true);syncPlay();};$('restart').onclick=()=>{showComplete=false;endOrb();time=ranges[version][0];phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();};document.querySelectorAll('button[data-phase]').forEach(b=>b.onclick=()=>{showComplete=false;version='story';document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));const selected=Number(b.dataset.phase);const next=selected===2&&time>=60?0:selected;time=next*30;phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();});
 $('heatToggle').onclick=()=>{heatVisible=!heatVisible;floorHeat.visible=bedHeat.visible=heatVisible;$('heatToggle').textContent='溫度層：'+(heatVisible?'開':'關');$('heatToggle').setAttribute('aria-pressed',String(heatVisible));refresh();};
 $('flowToggle').onclick=()=>{flowVisible=!flowVisible;$('flowToggle').textContent='氣流：'+(flowVisible?'開':'關');$('flowToggle').setAttribute('aria-pressed',String(flowVisible));};
 $('lightToggle').onclick=()=>{lightMarkers.visible=!lightMarkers.visible;for(const l of labels)if(l.light)l.el.style.display=lightMarkers.visible?'':'none';$('lightToggle').textContent='光源標示：'+(lightMarkers.visible?'開':'關');$('lightToggle').setAttribute('aria-pressed',String(lightMarkers.visible));};
 for(const id of ['target','heat','fresh'])$(id).oninput=e=>{const v=Number(e.target.value);if(id==='target')target=v;if(id==='heat')heat=v;if(id==='fresh'){fresh=v;rebuildFlows();}$(id+'Out').textContent=v+'°C';refresh();};
 $('freshX').oninput=e=>{freshVent.position.x=Number(e.target.value);freshLabel.pos.x=freshVent.position.x;$('freshXOut').textContent=freshVent.position.x.toFixed(1)+' m';rebuildFlows();};
-document.querySelectorAll('[data-version]').forEach(b=>b.onclick=()=>{showComplete=false;version=b.dataset.version;time=ranges[version][0]+.05;phase=-1;playing=true;document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v===b));refresh();syncPlay();});
+document.querySelectorAll('[data-version]').forEach(b=>b.onclick=()=>{showComplete=false;version=b.dataset.version;time=ranges[version][0]+.05;phase=-1;playing=true;syncSceneOSC(time,playing,version,true);document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v===b));refresh();syncPlay();});
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{$('fullscreen').textContent='使用瀏覽器全螢幕';}};
 document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();$('playPause').click();}if(e.key.toLowerCase()==='r')$('restart').click();});
 document.addEventListener('visibilitychange',()=>{last=performance.now();});
-window.addEventListener('osc-preview-heat',()=>{showComplete=false;version='story';time=15.01;playing=true;phase=-1;document.querySelectorAll('[data-version]').forEach(b=>b.classList.toggle('selected',b.dataset.version==='story'));refresh();syncPlay();});
 refresh();requestAnimationFrame(frame);
