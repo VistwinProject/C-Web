@@ -25,3 +25,25 @@ test('design voice keeps advancing while the entry projection is active',async()
   assert.equal(ctx.introAudio.paused,true);assert.equal(ctx.voiceTracks[1].paused,true);
  }
 });
+
+test('selecting chapter three again stays in chapter three, including after completion',async()=>{
+ const clock=await import('../presentation-timeline.mjs');
+ const buttons=[0,1,2].map(n=>({dataset:{phase:String(n)},classList:{toggle(){}}}));
+ const controls={playPause:{},restart:{}};
+ const ctx={...clock,time:75,version:'story',showComplete:false,playing:false,phase:5,ranges:{story:[0,90]},endOrb(){},syncVoice(){},syncPlay(){},syncSceneOSC(){},refresh(){},$:id=>controls[id],document:{querySelectorAll:selector=>selector==='button[data-phase]'?buttons:[]}};
+ const handlers=source.slice(source.indexOf("$('playPause').onclick="),source.indexOf("document.querySelector('[data-ending]').onclick="));
+ vm.createContext(ctx);vm.runInContext(handlers,ctx);
+ for(const complete of [false,true]){ctx.showComplete=complete;ctx.time=90;buttons[2].onclick();assert.equal(ctx.time,60);assert.equal(ctx.playhead,clock.showTime(60));assert.equal(ctx.playing,true);}
+});
+
+test('keyboard repeats and shortcuts at completion cannot restart playback',()=>{
+ let handler,clicks=0;
+ const ctx={showComplete:true,$:()=>({click(){clicks++}}),document:{addEventListener:(name,fn)=>{handler=fn}}};
+ const keys=source.slice(source.indexOf("document.addEventListener('keydown'"),source.indexOf("document.addEventListener('visibilitychange'"));
+ vm.createContext(ctx);vm.runInContext(keys,ctx);
+ const event=(code,key,extra={})=>({code,key,target:{tagName:'BODY'},preventDefault(){},...extra});
+ handler(event('Space',' '));handler(event('KeyR','r'));assert.equal(clicks,0);
+ ctx.showComplete=false;handler(event('Space',' ',{repeat:true}));assert.equal(clicks,0);
+ handler(event('Space',' '));assert.equal(clicks,1);
+ handler(event('Space',' ',{target:{tagName:'BUTTON'}}));assert.equal(clicks,1);
+});

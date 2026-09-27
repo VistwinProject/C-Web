@@ -330,7 +330,7 @@ function frame(now){
  viewport.dataset.visitorReady=String(entry.visitorReady);viewport.dataset.entryActive=String(entry.active);viewport.dataset.entryFloor=entry.floor.toFixed(3);viewport.dataset.entryBed=entry.bed.toFixed(3);
  if(entry.active){$('phaseText').textContent='日照、送風與休息位置，一起構成舒眠環境。';$('storyCue').textContent='地板與床面 · 互動光影';}
  else if(time<15&&!isIntro(playhead)){$('phaseText').textContent=descriptions[0][1];}
- sunlight.update(sample(time).solar*(1-closingFade(playhead)),heatVisible);animateFlows(dt,sample(time));settleScene();if(isIntro(playhead))updateIntroCaption(playhead);else if(isOutro(playhead))updateOutroCaption(playhead-OUTRO_START);else updateCaption(entry.active?-1:time);updateCamera(time);
+ sunlight.update(sample(time).solar*(1-closingFade(playhead)),heatVisible);animateFlows(dt,sample(time));settleScene();if(isIntro(playhead))updateIntroCaption(playhead);else if(isOutro(playhead))updateOutroCaption(playhead-OUTRO_START);else updateCaption(time);updateCamera(time);
  for(const l of labels){const p=l.pos.clone().project(camera);l.el.style.left=(p.x*.5+.5)*viewport.clientWidth+'px';l.el.style.top=(-p.y*.5+.5)*viewport.clientHeight+'px';l.el.hidden=p.z>1||(l===heatLabel&&sample(time).solar<=.01);}
  renderer.render(scene,camera);requestAnimationFrame(frame);
 }
@@ -349,7 +349,7 @@ function refresh(){lastUpdate=-1;update();}
 function syncPlay(){ $('playPause').textContent=playing?'Ⅱ 暫停':showComplete?'↺ 重播':'▶ 播放';}
 function unlockVoice(){if(voiceEnabled)prepareOrbAudio(allVoiceTracks).catch(()=>{});}
  document.querySelector('footer').addEventListener('click',unlockVoice);document.querySelector('#presentation-tools').addEventListener('click',unlockVoice);
-$('playPause').onclick=()=>{if(showComplete){$('restart').click();return;}playing=!playing;syncVoice(true);syncPlay();};$('restart').onclick=()=>{showComplete=false;endOrb();time=ranges[version][0];playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();};document.querySelectorAll('button[data-phase]').forEach(b=>b.onclick=()=>{showComplete=false;version='story';document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));const selected=Number(b.dataset.phase);const next=selected===2&&time>=60?0:selected;time=next*30;playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();});
+$('playPause').onclick=()=>{if(showComplete){$('restart').click();return;}playing=!playing;syncVoice(true);syncPlay();};$('restart').onclick=()=>{showComplete=false;endOrb();time=ranges[version][0];playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();};document.querySelectorAll('button[data-phase]').forEach(b=>b.onclick=()=>{showComplete=false;version='story';document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));const selected=Number(b.dataset.phase);time=selected*30;playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();});
 document.querySelector('[data-ending]').onclick=()=>{version='story';showComplete=false;playhead=OUTRO_START;time=90;phase=-1;playing=true;refresh();syncPlay();};
 $('heatToggle').onclick=()=>{heatVisible=!heatVisible;floorHeat.visible=bedHeat.visible=heatVisible;$('heatToggle').textContent='溫度層：'+(heatVisible?'開':'關');$('heatToggle').setAttribute('aria-pressed',String(heatVisible));refresh();};
 $('flowToggle').onclick=()=>{flowVisible=!flowVisible;$('flowToggle').textContent='氣流：'+(flowVisible?'開':'關');$('flowToggle').setAttribute('aria-pressed',String(flowVisible));};
@@ -358,6 +358,10 @@ for(const id of ['target','heat','fresh'])$(id).oninput=e=>{const v=Number(e.tar
 $('freshX').oninput=e=>{freshVent.position.x=Number(e.target.value);freshLabel.pos.x=freshVent.position.x;$('freshXOut').textContent=freshVent.position.x.toFixed(1)+' m';rebuildFlows();};
 document.querySelectorAll('[data-version]').forEach(b=>b.onclick=()=>{showComplete=false;version=b.dataset.version;time=ranges[version][0]+.05;playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v===b));refresh();syncPlay();});
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{$('fullscreen').textContent='使用瀏覽器全螢幕';}};
-document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();$('playPause').click();}if(e.key.toLowerCase()==='r')$('restart').click();});
+document.addEventListener('keydown',e=>{
+ if(e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.target.isContentEditable||['INPUT','SELECT','TEXTAREA','BUTTON','SUMMARY','A'].includes(e.target.tagName))return;
+ if(e.code==='Space'){e.preventDefault();if(!showComplete)$('playPause').click();}
+ if(e.key.toLowerCase()==='r'&&!showComplete)$('restart').click();
+});
 document.addEventListener('visibilitychange',()=>{last=performance.now();});
 refresh();requestAnimationFrame(frame);
