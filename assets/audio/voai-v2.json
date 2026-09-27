@@ -1,0 +1,31 @@
+{
+  "provider": "VoAI",
+  "voice": "怡婷 Neo",
+  "style": "預設",
+  "speed": 1,
+  "pitch": 0,
+  "generated": "2026-09-27",
+  "tracks": [
+    {
+      "file": "01-layout-v2.wav",
+      "duration": 15.629,
+      "rate": 32000,
+      "channels": 1,
+      "start": 3
+    },
+    {
+      "file": "02-sleep-v2.wav",
+      "duration": 18.639,
+      "rate": 32000,
+      "channels": 1,
+      "start": 32
+    },
+    {
+      "file": "03-wake-v2.wav",
+      "duration": 18.749,
+      "rate": 32000,
+      "channels": 1,
+      "start": 62
+    }
+  ]
+}

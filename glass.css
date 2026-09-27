@@ -1,0 +1,21 @@
+/* Translucent UI for C; keep the existing scene geometry and time-of-day palette. */
+body{--glass-panel:rgba(7,19,38,.58);--glass-card:rgba(15,35,57,.42);--glass-shell:rgba(3,10,22,.68);--glass-line:rgba(145,180,210,.27);--glass-shine:rgba(212,235,255,.05)}
+body[data-period="noon"],body[data-period="morning"]{--glass-panel:rgba(237,235,225,.55);--glass-card:rgba(250,248,239,.36);--glass-shell:rgba(220,222,214,.64);--glass-line:rgba(88,116,125,.3);--glass-shine:rgba(255,255,255,.36)}
+main{background:radial-gradient(ellipse at 92% 22%,#254758,#0a192a 76%)}
+body[data-period="noon"] main,body[data-period="morning"] main{background:radial-gradient(ellipse at 85% 12%,#f7edda,#bcced1 75%)}
+header,footer{background:var(--glass-shell);border-color:var(--glass-line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+aside{background:var(--glass-panel);border-color:var(--glass-line);box-shadow:inset 1px 0 0 var(--glass-shine);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.metrics{background:transparent;border-color:var(--glass-line);gap:0}
+.metrics article{background:var(--glass-card);padding:15px 11px 12px}
+.metrics article:nth-child(odd){border-right:1px solid var(--glass-line)}
+.metrics article:nth-child(-n+2){border-bottom:1px solid var(--glass-line)}
+#narrative,#osc-panel{background:var(--glass-panel);border-color:var(--glass-line);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);box-shadow:inset 0 1px 0 var(--glass-shine),0 4px 20px #0000000d}
+.versions button,.view-toolbar button,.spatial-key span,.state-comparison>div{background:var(--glass-card);border-color:var(--glass-line)}
+.versions button.selected,.spatial-key span.active,.state-comparison .active{background:var(--glass-panel);border-color:var(--accent)}
+.label,body[data-period="noon"] .label,body[data-period="morning"] .label{background:var(--glass-panel);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.label.ac{background:rgba(16,36,61,.62)}
+.label.fresh{background:rgba(16,44,46,.62)}
+body[data-period="noon"] .label.ac,body[data-period="morning"] .label.ac{background:rgba(237,243,251,.62)}
+body[data-period="noon"] .label.fresh,body[data-period="morning"] .label.fresh{background:rgba(237,245,240,.62)}
+body[data-period="noon"] .label.warm,body[data-period="morning"] .label.warm{background:rgba(250,240,218,.62)}
+@media(prefers-reduced-transparency:reduce){header,footer{background:var(--shell)}aside,#narrative,#osc-panel,.label{background:var(--panel);backdrop-filter:none;-webkit-backdrop-filter:none}.metrics article,.versions button,.view-toolbar button,.state-comparison>div{background:var(--card)}}

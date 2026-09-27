@@ -1,0 +1,46 @@
+/* Exhibition typography: strong readable text above the transparent scene. */
+.exhibition-stage>aside{color:var(--text)}
+.route-label,.chapter .eyebrow{font-size:clamp(14px,1vw,20px);font-weight:500;letter-spacing:.06em}
+.route-label{margin-bottom:18px}
+.chapter h1{font-size:clamp(44px,4.1vw,88px);font-weight:600;line-height:1.16;letter-spacing:.025em;margin:12px 0 16px}
+.chapter p{font-size:clamp(18px,1.25vw,28px);line-height:1.65;color:var(--text);font-weight:500}
+#narrative{height:clamp(224px,25vh,320px);min-height:clamp(224px,25vh,320px);padding:20px 22px;margin:24px 0;background:transparent}
+#narrativeText{font-size:clamp(28px,2.05vw,48px);line-height:1.52;font-weight:600;letter-spacing:.015em;color:var(--text)}
+.caption-header{margin-bottom:14px}
+.metrics article>span{font-size:clamp(15px,1.1vw,24px);font-weight:500;color:var(--text)}
+.metrics article:first-child strong{font-size:clamp(82px,7.1vw,136px);font-weight:500}
+.metrics strong{font-size:clamp(40px,3.1vw,64px);font-weight:500}
+.metrics small{font-size:clamp(13px,.95vw,20px);color:var(--text)}
+.metrics strong.status{font-size:clamp(23px,1.6vw,34px)!important;font-weight:600}
+.scene-heading h2{font-size:clamp(26px,2.1vw,44px);font-weight:600;letter-spacing:.06em}
+.scene-heading>.eyebrow,.spatial-key span{font-size:clamp(13px,.95vw,19px);font-weight:500}
+.label{font-size:clamp(13px,.95vw,19px);font-weight:500}
+#viewport[data-phase] .label{opacity:1}
+.scene-bottom,#storyCue{font-size:clamp(14px,1vw,21px);font-weight:500}
+.scene-bottom small,.legend{font-size:clamp(12px,.8vw,17px)}
+.legend{width:clamp(180px,13vw,260px)}
+.state-comparison span,.state-comparison small{font-size:clamp(14px,1vw,21px)}
+.state-comparison b{font-size:clamp(25px,1.8vw,38px);font-weight:500}
+.state-comparison>div{padding:14px 16px}
+.scene-bottom{bottom:138px}
+@media(max-height:850px) and (min-width:901px){
+ .exhibition-stage>aside{padding-top:20px;padding-bottom:12px}
+ .route-label{margin-bottom:8px;font-size:13px}.chapter .eyebrow{font-size:13px}
+ .chapter h1{font-size:clamp(40px,3.5vw,60px);margin:8px 0 10px}
+ .chapter p{font-size:17px;line-height:1.55}
+ #narrative{height:182px;min-height:182px;margin:14px 0;padding:14px 16px}
+ #narrativeText{font-size:27px;line-height:1.48}.caption-header{margin-bottom:8px}
+ #voice-orb{width:28px;height:28px;flex-basis:28px}
+ .metrics article:first-child strong{font-size:76px}.metrics strong{font-size:38px}
+ .metrics article>span{font-size:14px}.metrics small{font-size:12px}
+ .metrics article{padding-top:10px!important;padding-bottom:10px!important}
+ .metrics strong.status{font-size:22px!important}
+ .scene-heading h2{font-size:28px}.scene-bottom{bottom:118px}
+}
+@media(max-width:1100px){.scene-heading{grid-template-columns:1fr}.spatial-key{justify-content:flex-start}}
+@media(max-width:900px){
+ .chapter h1{font-size:46px}.chapter p{font-size:20px}
+ #narrative{height:230px;min-height:230px}#narrativeText{font-size:28px}
+ .scene-bottom{bottom:126px}.metrics strong{font-size:38px}
+ .scene-heading h2{font-size:27px}.label{font-size:12px}
+}

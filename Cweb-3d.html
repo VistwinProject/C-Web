@@ -1,30 +1,29 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C · 睡眠劇場 — 主臥 3D</title><link rel="stylesheet" href="bedroom.css?v=ac-2"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script></head>
-<body data-period="noon">
-<header><a class="brand" href="Cweb.html"><b>C</b><span>BAOPU · ANLB<small>睡眠劇場 / 主臥室</small></span></a><nav><span class="live"><i></i> 展示模擬</span><a href="Cweb.html">比較 2D ↗</a><button id="fullscreen">全螢幕 ⛶</button></nav></header>
-<main>
-<section class="scene-panel" aria-label="主臥三維場景">
- <div class="scene-heading"><span class="eyebrow">THE ROOM THAT RESPONDS</span><h1>看見氣流，流向舒適。</h1><p>固定視角 · 主臥線框 · 氣流動態</p><div class="versions" aria-label="時段版本"><button data-version="morning">早晨</button><button data-version="noon">午間</button><button data-version="night">夜晚</button><button data-version="story" class="selected">完整分鏡</button></div><div id="storyCue">掃描床位 · 數據浮現</div></div>
- <div id="narrative" aria-live="polite"><div id="voice-orb" aria-label="ANLB 語音球"></div><div class="narrative-copy"><span id="narrativeStage"></span><p id="narrativeText"></p></div></div><div id="viewport"><div id="loading" role="status">正在載入實際主臥模型…</div><div id="labels"></div></div>
- <div class="view-toolbar"><span class="fixed-view">固定視角</span><button id="heatToggle" aria-pressed="true">溫度層：開</button><button id="lightToggle" aria-pressed="true">光源：開</button><button id="flowToggle" aria-pressed="true">氣流：開</button></div>
- <div class="scene-bottom"><span>原始 .3DS 空間線框<br><small>固定俯斜視角 · 氣流為展示模擬<br><span style="color:#f78186">● 紅點：原模型光源</span>　* 設備 / 顯示位置待校準</small></span><div class="legend"><span>地板熱感 / 示意</span><div></div><span class="legend-ticks">低 <em>窗邊偏暖</em></span></div></div>
-</section>
-<aside>
- <div class="chapter"><span class="eyebrow" id="phaseNumber">01 / 03</span><h2 id="phaseTitle">悶熱累積</h2><p id="phaseText">窗邊暖區向室內延伸，床位仍偏暖。</p></div>
- <div class="metrics"><article><span>床位溫度</span><div><strong id="temperature">29.0</strong><small>°C</small></div><svg id="trend" viewBox="0 0 240 38" aria-label="本輪床位溫度趨勢"><path/></svg></article><article><span>相對濕度</span><div><strong id="humidity">68</strong><small>%</small></div><div class="meter"><i id="humidityBar"></i></div></article><article><span>背景噪音</span><div><strong id="noise">43</strong><small>dBA</small></div><small>情境值 · 靜音展示</small></article><article><span>床位狀態</span><div><strong class="status" id="bedStatus">偏暖</strong></div><small id="bedDetail">等待環境調節</small></article></div>
- <div class="system"><div><i class="dot warm"></i><span>窗邊熱流</span><b id="solarReadout">強 · 緩慢上升</b></div><div><i class="dot"></i><span>電動窗簾</span><b id="curtainReadout">開啟</b></div><div><i class="dot fresh"></i><span>新風送入</span><b id="freshReadout">待機</b></div><div><i class="dot ac"></i><span>冷氣送風</span><b id="acReadout">藍色送風 · 示意</b></div></div>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C · 睡眠劇場 — 主臥 3D</title><link rel="stylesheet" href="bedroom.css?v=story-v2a"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script><link rel="stylesheet" href="glass.css?v=c-glass-20260927b"><link rel="stylesheet" href="exhibition.css?v=info-right-1"><link rel="stylesheet" href="captions.css?v=slow-1"><link rel="stylesheet" href="floating-ui.css?v=focus-3"><link rel="stylesheet" href="player-controls.css?v=once-1"><link rel="stylesheet" href="exhibition-type.css?v=large-1"></head>
+<body data-period="noon" class="headerless">
+
+<main class="exhibition-stage"><aside aria-label="舒眠環境解說"> <div class="route-label" id="routeLabel">路線一 / 空間配置與舒眠觀察</div>
+ <div class="chapter"><span class="eyebrow" id="phaseNumber">01 / 03</span><h1 id="phaseTitle">最懂你的空間</h1><p id="phaseText">從設計規劃階段，整合冷氣送風、窗邊熱源與床位配置。</p></div>
+ <div id="narrative" aria-live="polite" aria-atomic="true" aria-label="語音字幕"><div class="caption-idle" aria-hidden="true"></div><div class="caption-content"><div class="caption-header"><div id="voice-orb" aria-label="ANLB 語音球"></div></div><p id="narrativeText"></p></div></div> <div class="metrics">
+ <article><span>床位溫度 · 情境示意</span><div><strong id="temperature">29.0</strong><small>°C</small></div><svg id="trend" viewBox="0 0 240 38" aria-label="本輪床位溫度示意趨勢"><path/></svg></article>
+ <article><span>冷氣設定 · 展演值</span><div><strong id="acSetpoint">24.5</strong><small>°C</small></div><small>預冷 → 低風維持 → 起床</small></article>
+ <article><span>照明亮度 · 相對設定</span><div><strong id="illuminance">75</strong><small>%</small></div><div class="meter"><i id="lightBar"></i></div></article>
+ <article><span>舒眠環境觀察</span><div><strong class="status" id="bedStatus">設計規劃</strong></div><small id="bedDetail">冷氣・熱源・床位</small></article>
+ </div>
+
+</aside><section class="scene-panel" aria-label="主臥三維場景"><div class="scene-heading"><span class="eyebrow">C / MASTER BEDROOM</span><h2>冷氣 × 熱源 × 床位</h2> <div class="spatial-key"><span data-focus="ac"><i></i>01 冷氣</span><span data-focus="heat"><i></i>02 熱源</span><span data-focus="bed"><i></i>03 床位</span></div>
+</div><div id="viewport"><div id="loading" role="status">正在載入實際主臥模型…</div><div id="labels"></div></div>
+<div class="scene-bottom"><div><span id="storyCue">設計規劃 → 舒眠配置</span><small>情境示意 · 非現場量測或舒眠評分</small></div><div class="legend"><span>現場熱力圖 / 展演示意</span><div></div><span class="legend-ticks">送風影響 <em>熱源側</em></span></div></div> <div class="state-comparison" aria-label="三種生活情境設定"><div data-compare="0"><span>睡前</span><b id="beforeSetting">24.5°C</b><small>預冷・漸暗</small></div><div data-compare="1"><span>睡眠</span><b id="sleepSetting">26.0°C</b><small>低風・低亮</small></div><div data-compare="2"><span>起床</span><b id="wakeSetting">26.5°C</b><small>適中・漸亮</small></div></div>
+</section></main><footer class="preview-player"><div class="playback"><button id="playPause" class="primary">▶ 播放</button><button id="voiceToggle" aria-pressed="true">語音：開</button><button id="restart" aria-label="重新開始">↺</button><span id="time">00:00 / 01:40</span></div><div class="timeline"><div id="progress"></div><button data-phase="0"><b>01</b> 最懂你的空間</button><button data-phase="1"><b>02</b> 睡前到入睡</button><button data-phase="2"><b>03</b> 起床與回看</button></div><details id="presentation-tools" class="preview-options"><summary>預覽設定</summary><div class="tools-body"><button id="fullscreen">全螢幕 ⛶</button><h2>播放情境</h2><div class="versions" aria-label="時段版本"><button data-version="morning">起床情境</button><button data-version="noon">空間配置</button><button data-version="night">睡前／睡眠</button><button data-version="story" class="selected">完整分鏡</button></div><button data-ending>結尾預覽</button><h2>場景顯示</h2> <div class="view-toolbar"><span class="fixed-view">固定視角</span><button id="heatToggle" aria-pressed="true">溫度層：開</button><button id="lightToggle" aria-pressed="true">光源：開</button><button id="flowToggle" aria-pressed="true">氣流：開</button></div>
+<h2>設備狀態</h2> <div class="system"><div><i class="dot warm"></i><span>窗邊日照</span><b id="solarReadout">強 · 緩慢上升</b></div><div><i class="dot"></i><span>電動窗簾</span><b id="curtainReadout">開啟</b></div><div><i class="dot fresh"></i><span>新風送入</span><b id="freshReadout">待機</b></div><div><i class="dot ac"></i><span>冷氣運轉</span><b id="acReadout">待機</b></div><div><i class="dot lighting"></i><span>照明情境</span><b id="lightReadout">75% · 日間展示</b></div></div>
  <details id="settings"><summary>調整展示假設 <span>＋</span></summary><div class="settings-body">
-  <label>床位參考 <output id="targetOut">26°C</output><input id="target" type="range" min="20" max="28" step="0.5" value="26"></label>
+  <label>睡眠冷氣設定 <output id="targetOut">26°C</output><input id="target" type="range" min="20" max="28" step="0.5" value="26"></label>
   <label>窗邊熱源 <output id="heatOut">34°C</output><input id="heat" type="range" min="28" max="38" step="0.5" value="34"></label>
   <label>新風溫度 <output id="freshOut">26°C</output><input id="fresh" type="range" min="18" max="34" step="0.5" value="26"></label>
   <label>新風口水平位置 <output id="freshXOut">-1.75 m</output><input id="freshX" type="range" min="-1.95" max="1.4" step="0.05" value="-1.75"></label>
 
-  <p>主臥新風進氣依使用者提供平面圖定位；高度與顯示面仍可校準。新風沒有冷凍降溫，床位參考僅用於狀態判讀。窗景僅標示位置；既有窗景應用維持獨立。</p>
+  <p>冷氣與熱源沿用已定位位置；新風為背景換氣。設定僅供展演比較，不代表建議睡眠溫度。現場熱力圖配合既有 TouchDesigner 三幕互動；窗景應用維持獨立。</p>
  </div></details>
- <p class="disclaimer">即時運算的展示視覺模擬，非 CFD、非實測。新風溫度為設定值。床組依簡報校正位置。</p>
-</aside>
-</main>
-<footer><div class="playback"><button id="playPause" class="primary">Ⅱ 暫停</button><button id="voiceToggle" aria-pressed="false">語音：關</button><button id="restart" aria-label="重新開始">↺</button><span id="time">00:00 / 01:30</span></div><div class="timeline"><div id="progress"></div><button data-phase="0"><b>01</b> 看見環境</button><button data-phase="1"><b>02</b> 安心入睡</button><button data-phase="2"><b>03</b> 自然醒來</button></div><span class="footer-note">C / MASTER BEDROOM</span></footer>
 <details id="osc-panel"><summary>OSC · TouchDesigner <span id="osc-badge">待測試</span></summary>
 <div class="osc-body"><label>轉送服務<input id="osc-bridge" value="http://127.0.0.1:8766" aria-label="OSC 轉送服務"></label>
 <div class="osc-target"><label>TD IP<input id="osc-host" value="127.0.0.1" aria-label="TouchDesigner IP"></label><label>UDP Port<input id="osc-port" type="number" min="1" max="65535" value="8970" aria-label="TouchDesigner UDP Port"></label></div>
@@ -32,4 +31,5 @@
 <label class="osc-auto"><input id="osc-auto" type="checkbox" checked>跟隨三幕狀態（0 → 1 → 2 → 0）</label>
 <label>提前發送（毫秒）<input id="osc-lead" type="number" min="0" max="1000" step="10" value="100"></label><div class="osc-actions"><button data-osc-test="0">測試 0</button><button data-osc-test="1">測試 1</button><button data-osc-test="2">測試 2</button></div><p>自動切幕提前送出；手動切幕立即送出。HTTP 耗時不等於 TD 接收延遲。</p>
 <p id="osc-status" role="status">需啟動本機 OSC 轉送服務。UDP 送出不代表 TD 已收到。</p><ol id="osc-log" aria-label="OSC 送出紀錄"></ol></div></details>
-<script type="module" src="bedroom.js?v=ac-2"></script></body></html>
+ <p class="disclaimer">溫度與亮度為展演設定，非現場量測或舒眠評分。熱力圖呈現空間差異，實際效果依現場設備與互動校準。</p><a class="compare-link" href="Cweb.html">比較 2D ↗</a></div></details></footer>
+<script type="module" src="bedroom.js?v=continuous-11"></script></body></html>

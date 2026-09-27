@@ -1,0 +1,14 @@
+/* A reserved, large caption field; changing lines never moves the data below. */
+#narrative{display:block;min-height:166px;height:166px;margin:14px 0;padding:16px 18px;position:relative;inset:auto;transform:none;width:100%;overflow:hidden}
+.caption-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+#voice-orb{width:36px;height:36px;flex:0 0 36px}
+#narrativeStage{display:block;font-size:12px;letter-spacing:.1em;color:var(--accent)}
+#narrativeText{font-size:clamp(18px,1.55vw,27px);line-height:1.6;font-weight:400;letter-spacing:.025em;margin:0;color:var(--text)}
+.caption-content{will-change:opacity}
+.caption-idle{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:12px;letter-spacing:.15em;pointer-events:none}
+#narrative.is-speaking .caption-idle{display:none}
+@media(min-width:1600px){#narrative{height:215px;min-height:215px;padding:22px;margin:22px 0}.caption-header{margin-bottom:16px}#voice-orb{width:44px;height:44px;flex-basis:44px}#narrativeStage{font-size:14px}}
+@media(max-height:780px) and (min-width:901px){#narrative{height:152px;min-height:152px;margin:12px 0;padding:12px 15px}.caption-header{margin-bottom:8px}#voice-orb{width:30px;height:30px;flex-basis:30px}#narrativeText{font-size:19px;line-height:1.55}.metrics article:first-child strong{font-size:56px}.metrics article:first-child{padding-bottom:10px!important}.metrics article:nth-child(2),.metrics article:nth-child(3){padding-top:8px!important;padding-bottom:8px!important}.metrics strong{font-size:29px}.metrics article:nth-child(4){padding:7px 0!important;gap:6px}.chapter h1{font-size:34px}.route-label{margin-bottom:8px}}
+@media(max-width:900px){#narrative{height:166px;min-height:166px;max-width:none}#narrativeText{font-size:22px}.caption-header{margin-bottom:12px}}
+@media(max-width:540px){#narrative{height:174px;min-height:174px;padding:14px}#narrativeText{font-size:21px;line-height:1.6}}
+@media(prefers-reduced-motion:reduce){#narrative.is-speaking .caption-content{opacity:1!important;will-change:auto}}

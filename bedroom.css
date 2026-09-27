@@ -66,3 +66,13 @@ body[data-period="morning"] .scene-bottom small,body[data-period="noon"] .scene-
 body[data-period="morning"] .label.fresh,body[data-period="noon"] .label.fresh{color:#416f68;background:#edf5f0ed}
 body[data-period="morning"] .label.ac,body[data-period="noon"] .label.ac{color:#37649b;border-color:#88a9ce;background:#edf3fbed}
 .dot.fresh{background:#9ccfc5;box-shadow:0 0 7px #9ccfc544}.dot.ac{background:#76afff;box-shadow:0 0 7px #76afff44}
+
+/* C story V2: spatial explanation and visible equipment states. */
+.route-label{font-size:10px;letter-spacing:1px;color:var(--accent);margin-bottom:12px;line-height:1.6}
+.spatial-key{display:flex;gap:6px;flex-wrap:wrap}.spatial-key span{padding:7px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font-size:10px}.spatial-key span.active{background:var(--card);border-color:var(--accent);color:var(--text)}.spatial-key i{display:inline-block;width:5px;height:5px;border-radius:50%;background:#629fca;margin-right:4px}.spatial-key [data-focus="heat"] i{background:#dca24f}.spatial-key [data-focus="bed"] i{background:#9cb6a9}
+.label.focus,#viewport[data-phase="1"] .label.focus{opacity:1;z-index:4;border-width:2px;font-weight:600;box-shadow:0 0 14px #428cff33}
+#narrative{bottom:70px;gap:12px}
+#voice-orb{width:72px;height:72px;flex-basis:72px}
+#voiceToggle:disabled{opacity:.6;cursor:default}
+.state-comparison{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:15px 0}.state-comparison>div{border:1px solid var(--line);border-radius:5px;padding:9px 5px;display:flex;flex-direction:column;gap:5px;text-align:center;color:var(--muted)}.state-comparison span{font-size:10px}.state-comparison b{font-size:14px;font-weight:500}.state-comparison small{font-size:9px}.state-comparison .active{background:var(--card);border-color:var(--accent);color:var(--text)}.dot.lighting{background:#d9b974}.metrics .status{font-size:18px!important}.metrics article{min-height:110px}.chapter h2{font-size:22px}.chapter p{min-height:38px}.metrics{margin-top:12px}
+@media(max-width:760px){.state-comparison{max-width:500px}.route-label{margin-top:4px}.metrics{grid-template-columns:1fr 1fr}}
