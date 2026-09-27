@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 
 import {createBedModel} from './bed-model.js';
+import {ambientAt,ambientBackground,mixColor} from './ambient-light.mjs';
 import {config} from './scene-config.js?v=ac-1';
 import {cameraAt,shots} from './camera-shots.mjs?v=calm-5';
 import {focusEmphasis} from './focus-emphasis.mjs';
@@ -55,7 +56,8 @@ function box(name,size,pos,material,parent=scene){const mesh=new THREE.LineSegme
 const bedSurfaces=[],focusMaterials={ac:[],window:[],bed:[]};
 const focusTints={ac:new THREE.Color(0xa7e6ff),window:new THREE.Color(0xffc581),bed:new THREE.Color(0xafe5ff)};
 function registerFocus(group,key){group.traverse(o=>{if(o.isLine&&o.material)focusMaterials[key].push({material:o.material,color:o.material.color.clone(),opacity:o.material.opacity});});}
-function updateFocus(time){const {weights,pulse}=focusEmphasis(shots,time,cameraMotionPreference.matches);for(const [key,items] of Object.entries(focusMaterials)){const amount=(weights[key]||0)*pulse;for(const item of items){item.material.color.copy(item.color).lerp(focusTints[key],amount);item.material.opacity=item.opacity+(1-item.opacity)*amount;}}}
+function updateFocus(time){const {weights,pulse}=focusEmphasis(shots,time,cameraMotionPreference.matches),day=ambientAt(time).day;for(const [key,items] of Object.entries(focusMaterials)){const amount=(weights[key]||0)*pulse;for(const item of items){item.material.color.copy(item.color).lerp(dayLineTint,.6*day).lerp(focusTints[key],amount);const opacity=item.opacity+(Math.min(.85,item.opacity*2.1)-item.opacity)*day;item.material.opacity=opacity+(1-opacity)*amount;}}}
+const dayLineTint=new THREE.Color(0x365a70);
 const bedLabel=label('03 床位 · 舒眠環境觀察',[-.42,.65,-.65]);
 function vent(name,position,color){const group=new THREE.Group();group.position.fromArray(position);scene.add(group);box(name,[.35,.07,.24],[0,0,0],mat(0xc6cfca,.5,.4),group);for(let i=0;i<6;i++)box('Grille',[.27,.008,.012],[0,-.04,-.09+i*.035],mat(color),group);return group;}
 const freshVent=vent('Fresh supply',config.fresh.position,0x9ccfc5);
@@ -181,21 +183,21 @@ function drawHeat(s){
  for(const m of bedSurfaces)m.color.set(0x214667);
 }
 function projectionDraw(s){
- const scan=smooth((time-15)/9),settle=smooth((time-75)/9),day=periodAt(time)!=='night',ink=day?'#36596a':'#c5e4ff';
- pc.clearRect(0,0,768,432);pc.fillStyle=day?'#fff8e6a8':'#174a7948';pc.fillRect(0,0,768,432);
+ const scan=smooth((time-15)/9),settle=smooth((time-75)/9),day=ambientAt(time).day,ink=mixColor(0xc5e4ff,0x36596a,day);
+ pc.clearRect(0,0,768,432);pc.fillStyle=mixColor(0x174a79,0xfff8e6,day);pc.globalAlpha=(72+96*day)/255;pc.fillRect(0,0,768,432);pc.globalAlpha=1;
  pc.save();pc.globalAlpha=1-settle;
- pc.strokeStyle=day?'#718d9755':'#82bfff55';pc.lineWidth=1;pc.strokeRect(1,1,766,430);
+ pc.strokeStyle=mixColor(0x82bfff,0x718d97,day);pc.lineWidth=1;pc.strokeRect(1,1,766,430);
  pc.fillStyle=ink;pc.font='22px sans-serif';pc.fillText('C  /  SLEEP ENVIRONMENT',32,48);
  pc.save();pc.beginPath();pc.rect(32,85,340,270*(time<15?0:scan));pc.clip();
  pc.globalAlpha=.62*(1-settle);pc.drawImage(heatCanvas,32,85,340,270);pc.restore();
- pc.strokeStyle=day?'#547787':'#bcdfff';pc.lineWidth=3;pc.strokeRect(124,126,142,190);
+ pc.strokeStyle=mixColor(0xbcdfff,0x547787,day);pc.lineWidth=3;pc.strokeRect(124,126,142,190);
  if(time>=15&&time<24){pc.strokeStyle='#e3f3ff';pc.beginPath();pc.moveTo(32,85+270*scan);pc.lineTo(372,85+270*scan);pc.stroke();}
  for(const [start,font,text,y] of [[17,70,s.temp.toFixed(1)+'°',173],[20,25,'AC '+s.acSet.toFixed(1)+'°C',234],[23,25,'LIGHT '+Math.round(s.light*100)+'%',280]]){
   pc.globalAlpha=(1-settle)*smooth((time-start)/2);pc.font=font+'px sans-serif';pc.fillStyle=ink;pc.fillText(text,455,y);
  }
  pc.globalAlpha=1-settle;pc.font='19px sans-serif';pc.fillText('EXHIBITION SIMULATION',32,405);pc.restore();
  if(settle>0){
-  pc.save();pc.globalAlpha=settle;pc.strokeStyle=day?'#496c7a':'#d9edff';pc.lineWidth=3;pc.beginPath();
+  pc.save();pc.globalAlpha=settle;pc.strokeStyle=mixColor(0xd9edff,0x496c7a,day);pc.lineWidth=3;pc.beginPath();
   for(let x=25;x<745;x++){const y=216+Math.sin(x*.012-time*1.05)*28*Math.exp(-(((x-384)/260)**2));x===25?pc.moveTo(x,y):pc.lineTo(x,y);}pc.stroke();
   pc.fillStyle=ink;pc.font='27px sans-serif';pc.fillText('同一個房間，三種生活情境。',32,75);
   pc.font='19px sans-serif';pc.fillText('睡前 → 睡眠 → 起床  /  溫度・送風・光線',32,380);pc.restore();
@@ -239,15 +241,15 @@ for(let i=0;i<100;i++){
 
 rebuildFlows();
 function animateFlows(dt,s){flowGroup.visible=flowVisible;
- const day=periodAt(time)!=='night';
- const supplyColor=new THREE.Color(day?0x619e96:0xa4d9ce);
+ const day=ambientAt(time).day;
+ const supplyColor=new THREE.Color(0xa4d9ce).lerp(new THREE.Color(0x619e96),day);
  for(const p of supplyParticles){
   if(playing&&s.power>0)p.age=(p.age+dt*p.rate*(.5+.5*s.power))%1;
   const age=p.age,u=1-Math.pow(1-age,1.35),pos=p.curve.getPoint(u),mix=Math.pow(u,1.4);
   pos.x+=Math.sin(u*7.5+p.seed)*.12*mix;
   pos.y+=Math.sin(u*9+p.seed*1.7)*.065*mix;
   pos.z+=Math.cos(u*8+p.seed*.8)*.11*mix;
-  p.sprite.position.copy(pos);p.sprite.material.color.copy(supplyColor);p.sprite.material.blending=day?THREE.NormalBlending:THREE.AdditiveBlending;
+  p.sprite.position.copy(pos);p.sprite.material.color.copy(supplyColor);p.sprite.material.blending=THREE.NormalBlending;
   const fade=smooth(age/.09)*(1-smooth((age-.58)/.42));
   p.sprite.material.opacity=s.power>0?fade*(.58+.30*s.power):0;
   const radius=p.size*(1+u*.55);p.sprite.scale.set(radius,radius,1);
@@ -257,8 +259,8 @@ function animateFlows(dt,s){flowGroup.visible=flowVisible;
   if(playing&&acPower>0)p.age=(p.age+dt*p.rate*(.25+.75*acPower))%1;
   const u=1-Math.pow(1-p.age,1.3),pos=p.curve.getPoint(u);
   pos.z+=Math.sin(u*8+p.seed)*.075*u;pos.x+=Math.cos(u*7+p.seed)*.06*u;
-  p.sprite.position.copy(pos);p.sprite.material.color.set(day?0x397fd3:0x76afff);
-  p.sprite.material.blending=day?THREE.NormalBlending:THREE.AdditiveBlending;
+  p.sprite.position.copy(pos);p.sprite.material.color.set(0x76afff).lerp(new THREE.Color(0x397fd3),day);
+  p.sprite.material.blending=THREE.NormalBlending;
   p.sprite.material.opacity=smooth(p.age/.08)*(1-smooth((p.age-.65)/.35))*(.85*acPower);
   const radius=p.size*(1+u*.7);p.sprite.scale.set(radius,radius,1);
  }
@@ -283,9 +285,14 @@ document.querySelectorAll('[data-compare]').forEach(el=>el.classList.toggle('act
 $('sleepSetting').textContent=target.toFixed(1)+'°C';$('beforeSetting').textContent=(target-1.5).toFixed(1)+'°C';$('wakeSetting').textContent=(target+.5).toFixed(1)+'°C';
 $('time').textContent=formatTime(playhead)+' / '+formatTime(SHOW_DURATION);$('progress').style.width=(playhead/SHOW_DURATION*100)+'%';$('viewport').dataset.simulationTime=time.toFixed(2);$('viewport').dataset.showTime=playhead.toFixed(2);$('viewport').dataset.phase=String(p);$('viewport').dataset.bedTemperature=s.temp.toFixed(2);
 const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},${(35-(sample(t).temp-19)/20*30).toFixed(1)}`);}$('trend').firstElementChild.setAttribute('d',points.length?'M'+points.join(' L'):'');drawHeat(s);projectionDraw(s);
- const next=periodAt(time);if(next!==period||document.body.dataset.period!==next){period=next;document.body.dataset.period=next;grid.material.opacity=next!=="night"?.05:.22;
- scene.traverse(o=>{if(!o.isLine||o===grid)return;const m=o.material;if(!m.userData.baseColor){m.userData.baseColor=m.color.clone();m.userData.baseOpacity=m.opacity;}m.color.copy(m.userData.baseColor);m.opacity=m.userData.baseOpacity;if(next!=='night'){m.color.lerp(new THREE.Color(0x365a70),.6);m.opacity=Math.min(.85,m.opacity*2.1);}});
- }
+ const next=periodAt(time),ambient=ambientAt(time);period=next;
+ // The palette follows the lighting ramp, rather than jumping at chapter boundaries.
+ document.body.dataset.period=ambient.day>.5?(time<60?'noon':'morning'):'night';
+ document.querySelector('.scene-panel').style.background=ambientBackground(time);
+ document.querySelector('main').style.background=ambientBackground(time);
+ viewport.dataset.ambientDay=ambient.day.toFixed(4);
+ grid.material.opacity=.22-.17*ambient.day;
+ scene.traverse(o=>{if(!o.isLine||o===grid)return;const m=o.material;if(!m.userData.baseColor){m.userData.baseColor=m.color.clone();m.userData.baseOpacity=m.opacity;}m.color.copy(m.userData.baseColor).lerp(dayLineTint,.6*ambient.day);m.opacity=m.userData.baseOpacity+(Math.min(.85,m.userData.baseOpacity*2.1)-m.userData.baseOpacity)*ambient.day;});
  $('curtainReadout').textContent=s.curtain>.9?'關閉':s.curtain<.1?'開啟':'移動中';
  $('solarReadout').textContent=s.solar===0?'無日照':s.solar>.7?'強 · 緩慢上升':s.solar>.25?'柔和暖流':'減弱';
  $('storyCue').textContent=descriptions[p][0]+' · '+(p<2?'設計規劃 → 舒眠配置':'冷氣設定 → 送風 → 光線');
@@ -294,10 +301,10 @@ const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},
  scanSweep.position.z=-1.55+scan*3.1;
  scanSweep.material.opacity=.85*smooth((time-15)/.6)*(1-smooth((time-23)/1));
  // Brightness follows story time, so pausing and chapter jumps remain deterministic.
- document.body.style.setProperty('--dawn-shade',String(next==='morning'?.76*(1-s.wake):0));
- document.body.classList.toggle('dawn-dark',next==='morning'&&s.wake<.55);
+ document.body.style.setProperty('--dawn-shade','0');
+ document.body.classList.remove('dawn-dark');
  document.body.style.setProperty('--room-dim',String((1-s.light)*.22));
- projection.material.opacity=(next==='night'?.46*(p===3?.65:1):.82)*(p===1?.12+.88*smooth((time-24)/4):1);
+ projection.material.opacity=(.46*(1-.35*smooth((time-42)/6))*(1-ambient.day)+.82*ambient.day)*(p===1?.12+.88*smooth((time-24)/4):1);
  bedHeat.material.opacity=.04+.52*smooth((time-25)/4);bedHeat.visible=heatVisible&&playhead>=13;
 
  curtains[0].scale.x=curtains[1].scale.x=.025+.975*s.curtain;

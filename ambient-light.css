@@ -1,0 +1,2 @@
+/* Background and geometry use the show clock; UI colors remain fully opaque. */
+.exhibition-stage>aside,.exhibition-stage>aside *,.scene-heading *,.scene-bottom *,.label,.state-comparison *{transition:color 2.4s ease,border-color 2.4s ease,background-color 2.4s ease}
