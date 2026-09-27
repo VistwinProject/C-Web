@@ -1,4 +1,4 @@
-import {ending} from './ending.mjs';
+import {ending} from './ending.mjs?v=voice-exit-1';
 import {intro} from './intro.mjs';
 import {storyTime as bodyStoryTime,showTime as bodyShowTime,entryActive as bodyEntryActive,SHOW_DURATION as BODY_DURATION} from './entry-timeline.mjs';
 export const INTRO_DURATION=intro.sectionDuration,OUTRO_START=INTRO_DURATION+BODY_DURATION,SHOW_DURATION=OUTRO_START+ending.sectionDuration;

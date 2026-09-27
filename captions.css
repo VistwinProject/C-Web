@@ -12,3 +12,7 @@
 @media(max-width:900px){#narrative{height:166px;min-height:166px;max-width:none}#narrativeText{font-size:22px}.caption-header{margin-bottom:12px}}
 @media(max-width:540px){#narrative{height:174px;min-height:174px;padding:14px}#narrativeText{font-size:21px;line-height:1.6}}
 @media(prefers-reduced-motion:reduce){#narrative.is-speaking .caption-content{opacity:1!important;will-change:auto}}
+
+/* Hold the exit message after speech and at the stopped final frame. */
+#narrative.is-closing .caption-header{visibility:hidden;position:absolute;top:0;left:18px}
+#narrative.is-closing .caption-content{padding-top:12px}

@@ -1,4 +1,4 @@
-import {ending} from './ending.mjs';
+import {ending} from './ending.mjs?v=voice-exit-1';
 import {intro} from './intro.mjs';
 import {narration} from './c-story.mjs?v=opening-7';
 import {buildCaptions,captionAt} from './caption-timeline.mjs?v=slow-1';
@@ -13,7 +13,8 @@ const clips=[
 ];
 export const cues=buildCaptions(clips,28);
 const introCues=buildCaptions([{id:"c-intro",text:intro.text,start:intro.start,end:intro.end}],28);
-const endingCues=buildCaptions([{id:"c-ending",text:ending.text,start:ending.start,end:ending.end}],28);
+const endingCues=[...buildCaptions([{id:"c-ending",text:ending.summaryText,start:ending.start,end:ending.summaryEnd}],28),
+ {id:"c-farewell",text:ending.farewellText,start:ending.farewellStart,end:Infinity,closing:true}];
 let previous;
 export function updateCaption(time){renderCaption(cues,time);}
 export function updateIntroCaption(time){renderCaption(introCues,time);}
@@ -21,6 +22,6 @@ export function updateOutroCaption(time){renderCaption(endingCues,time);}
 function renderCaption(timeline,time){
  const {cue,opacity}=captionAt(timeline,time),host=document.getElementById('narrative');
  const key=cue?.id||'idle';
- if(key!==previous){previous=key;host.classList.toggle('is-speaking',!!cue);document.getElementById('narrativeText').textContent=cue?.text||'';}
+ if(key!==previous){previous=key;host.classList.toggle('is-speaking',!!cue);host.classList.toggle('is-closing',!!cue?.closing);document.getElementById('narrativeText').textContent=cue?.text||'';}
  host.querySelector('.caption-content').style.opacity=String(opacity);
 }

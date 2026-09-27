@@ -1,7 +1,7 @@
 import {projectionValue,thermalPalette} from './entry-projection.mjs?v=organic-6';
-import {storyTime,showTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs';
+import {storyTime,showTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=voice-exit-1';
 import {intro} from './intro.mjs';
-import {ending} from './ending.mjs';
+import {ending} from './ending.mjs?v=voice-exit-1';
 import {createEntryExperience} from './entry-experience.js?v=organic-night-6';
 import {createSunlight} from './sunlight-view.js?v=spread-3';
 import {createSolarExposure} from './solar-exposure.js?v=spread-3';
@@ -15,7 +15,7 @@ import {ambientAt,ambientBackground,mixColor} from './ambient-light.mjs';
 import {config} from './scene-config.js?v=ac-1';
 import {cameraAt,shots} from './camera-shots.mjs?v=calm-5';
 import {focusEmphasis} from './focus-emphasis.mjs';
-import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=ending-9';
+import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=voice-exit-1';
 import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=opening-7';
 
 const $=id=>document.getElementById(id), viewport=$('viewport');
