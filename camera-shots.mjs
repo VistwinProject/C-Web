@@ -8,11 +8,11 @@ export const shots=[
  shot(7.2,'冷氣出風口特寫',ac,1.5),shot(8.8,'冷氣出風口特寫',ac,1.5),shot(10.1,'空間全景',home),
  shot(10.3,'空間全景',home),shot(11.5,'窗邊熱源特寫',window,1.4),shot(13.2,'窗邊熱源特寫',window,1.4),shot(14.5,'空間全景',home),
  shot(17.5,'空間全景',home),shot(18.8,'床位配置特寫',bed,1.3),shot(21.5,'床位配置特寫',bed,1.3),shot(23.0,'空間全景',home),
- shot(35.4,'空間全景',home),shot(36.8,'冷氣送風特寫',ac,1.5),shot(39.2,'冷氣送風特寫',ac,1.5),shot(40.5,'空間全景',home),
- shot(41.0,'空間全景',home),shot(42.3,'窗簾關閉特寫',window,1.4),shot(43.7,'窗簾關閉特寫',window,1.4),shot(45.0,'空間全景',home),
- shot(46.0,'空間全景',home),shot(47.4,'床位環境特寫',bed,1.3),shot(50.8,'床位環境特寫',bed,1.3),shot(52.2,'空間全景',home),
- shot(63.0,'空間全景',home),shot(64.4,'晨光窗簾特寫',window,1.4),shot(66.0,'晨光窗簾特寫',window,1.4),shot(67.3,'空間全景',home),
- shot(67.7,'空間全景',home),shot(69.0,'起床冷氣特寫',ac,1.5),shot(70.4,'起床冷氣特寫',ac,1.5),shot(71.8,'空間全景',home),
+ // Sleep is one restrained push toward the bed; dawn stays in the full room.
+ shot(34,'空間全景',home),
+ shot(39,'舒眠床位觀察',[-.10,.84,.10],1.12),
+ shot(51,'舒眠床位觀察',[-.10,.84,.10],1.12),
+ shot(56,'空間全景',home),
  shot(90,'結尾全景',home)
 ];
 export const cameraAt=(time,reduced=false)=>cameraPose(shots,time,reduced);

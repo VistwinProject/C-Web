@@ -12,7 +12,7 @@ import {GLTFLoader} from './vendor/GLTFLoader.js';
 
 import {createBedModel} from './bed-model.js';
 import {config} from './scene-config.js?v=ac-1';
-import {cameraAt,shots} from './camera-shots.mjs?v=gentle-4';
+import {cameraAt,shots} from './camera-shots.mjs?v=calm-5';
 import {focusEmphasis} from './focus-emphasis.mjs';
 import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=ending-9';
 import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=opening-7';

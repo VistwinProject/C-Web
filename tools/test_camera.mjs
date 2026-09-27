@@ -16,8 +16,8 @@ test('camera remains continuous at every cue and independent of playback history
 });
 
 test("spoken object gets a moderate close-up, followed by a full-room hold",()=>{
- for(const t of [8, 12, 20, 38.0, 43.0, 49.0, 65.0, 69.5])assert.ok(cameraPose(shots,t).zoom>=1.3);
- for(const t of [0, 5, 15, 25, 33, 40.8, 45.5, 58, 67.5, 75, 90]){const pose=cameraPose(shots,t);assert.equal(pose.zoom,1);assert.deepEqual(pose.target,shots[0].target);}
+ for(const t of [8, 12, 20])assert.ok(cameraPose(shots,t).zoom>=1.3);
+ for(const t of [0, 5, 15, 25, 33, 58, 67.5, 75, 90]){const pose=cameraPose(shots,t);assert.equal(pose.zoom,1);assert.deepEqual(pose.target,shots[0].target);}
  assert.ok(shots.every(s=>s.yaw===0&&s.pitch===0&&s.zoom<=1.5));
 });
 
@@ -29,4 +29,15 @@ test('focus stays on the named object, fades continuously and respects pause/red
  assert.equal(focusEmphasis(shots,t,true).pulse,focusEmphasis(shots,t+1,true).pulse);
  for(const s of shots.slice(1)) {const a=focusEmphasis(shots,s.time-.0001),b=focusEmphasis(shots,s.time+.0001);for(const k of new Set([...Object.keys(a.weights),...Object.keys(b.weights)]))assert.ok(Math.abs((a.weights[k]||0)-(b.weights[k]||0))<.001);}
  assert.deepEqual(focusEmphasis(shots,0).weights,{});assert.deepEqual(focusEmphasis(shots,999).weights,{});
+});
+
+test('sleep has one gentle held push and dawn remains completely still',()=>{
+ const home=cameraPose(shots,30);
+ for(let t=30;t<=60;t+=.25)assert.ok(cameraPose(shots,t).zoom<=1.12);
+ const hold=cameraPose(shots,39);
+ assert.equal(hold.zoom,1.12);
+ for(let t=39;t<=51;t+=.5)assert.deepEqual(cameraPose(shots,t),hold);
+ for(let t=60;t<=90;t+=.25){const p=cameraPose(shots,t);assert.equal(p.zoom,home.zoom);assert.deepEqual(p.target,home.target);assert.equal(p.yaw,0);assert.equal(p.pitch,0);}
+ const pushes=shots.filter((s,i)=>i&&s.time>=30&&s.zoom>shots[i-1].zoom);
+ assert.equal(pushes.length,1);
 });
