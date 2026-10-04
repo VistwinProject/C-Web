@@ -2,6 +2,7 @@ import {projectionValue,thermalPalette} from './entry-projection.mjs?v=organic-6
 import {storyTime,showTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=voice-exit-1';
 import {intro} from './intro.mjs';
 import {ending} from './ending.mjs?v=voice-exit-1';
+import {connectX} from './x-control.mjs';
 import {createEntryExperience} from './entry-experience.js?v=organic-night-6';
 import {createSunlight} from './sunlight-view.js?v=spread-3';
 import {createSolarExposure} from './solar-exposure.js?v=spread-3';
@@ -115,11 +116,13 @@ function tempColor(t){const q=THREE.MathUtils.clamp((t-20)/4,0,2.999),i=Math.flo
 const solarExposure=createSolarExposure(),entryExperience=createEntryExperience(scene,solarExposure),sunlight=createSunlight(scene,solarExposure);
 let playhead=0;
 let version="story",period="noon",target=26,heat=34,fresh=26,time=0,playing=false,last=performance.now(),lastUpdate=-1,phase=-1;
-let voiceEnabled=true,narrationIndex=-1,showComplete=false;
+const silentTest=new URLSearchParams(location.search).get('audio')==='muted';
+let voiceEnabled=!silentTest,narrationIndex=-1,showComplete=false;
 const introAudio=document.createElement('audio');introAudio.src='./assets/audio/'+intro.file;introAudio.preload='auto';introAudio.hidden=true;document.body.append(introAudio);
 const voiceTracks=narration.map(cue=>{const el=document.createElement('audio');el.src='./assets/audio/'+cue[4];el.preload='auto';el.dataset.act=cue[1];el.hidden=true;document.body.append(el);return el;});
 const endingAudio=document.createElement('audio');endingAudio.src='./assets/audio/'+ending.file;endingAudio.preload='auto';endingAudio.hidden=true;document.body.append(endingAudio);
 const allVoiceTracks=[introAudio,endingAudio,...voiceTracks];
+allVoiceTracks.forEach(audio=>{audio.muted=silentTest;});
 function updateVoiceAvailability(){
  const ready=allVoiceTracks.every(audio=>Number.isFinite(audio.duration)&&!audio.error);
  const missing=allVoiceTracks.some(audio=>audio.error);
@@ -325,12 +328,16 @@ const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},
  for(const point of lightMarkers.children)point.material.opacity=.15+.8*s.light;
 }
 function settleScene(){const alpha=1-closingFade(playhead);for(const p of [...supplyParticles,...acParticles])p.sprite.material.opacity*=alpha;}
-function frame(now){
- const dt=Math.max(0,Math.min((now-last)/1000,.1));last=now;
+let lastDrawAt=-Infinity;
+function advanceClock(now){
+ const dt=Math.max(0,(now-last)/1000);last=now;
  if(playing){
   playhead+=dt;time=storyTime(playhead);
   if(version==='story'?playhead>=SHOW_DURATION:time>=ranges[version][1]){time=ranges[version][1]-(version==='story'?0:.001);playhead=version==='story'?SHOW_DURATION:showTime(time);playing=false;showComplete=true;lastUpdate=-1;endOrb();syncPlay();syncVoice();}
  }
+}
+function frame(now){
+ const dt=Math.max(0,Math.min((now-last)/1000,.1));advanceClock(now);lastDrawAt=now;
  syncSceneOSC(time,playing,version);
  if(Math.abs(playhead-lastUpdate)>.12||lastUpdate<0){update();lastUpdate=playhead;}
  const entry=entryExperience.update(playhead-INTRO_DURATION,{heatVisible,reduced:cameraMotionPreference.matches});
@@ -370,5 +377,21 @@ document.addEventListener('keydown',e=>{
  if(e.code==='Space'){e.preventDefault();if(!showComplete)$('playPause').click();}
  if(e.key.toLowerCase()==='r'&&!showComplete)$('restart').click();
 });
-document.addEventListener('visibilitychange',()=>{last=performance.now();});
+document.addEventListener('visibilitychange',()=>{advanceClock(performance.now());});
 refresh();requestAnimationFrame(frame);
+connectX({
+ snapshot:()=>{advanceClock(performance.now());return {ready:!!root&&!renderer.getContext().isContextLost(),visible:!document.hidden,rendering:!document.hidden&&performance.now()-lastDrawAt<2000,playback:{position:playhead,duration:SHOW_DURATION,playing,complete:showComplete,
+   chapter:isIntro(playhead)?1:isOutro(playhead)?5:2+Math.min(2,Math.floor(time/30)),
+   title:isIntro(playhead)?'前言':isOutro(playhead)?'結語':['最懂你的空間','睡前到入睡','起床與回看'][Math.min(2,Math.floor(time/30))],
+   audio:silentTest||!voiceEnabled?'muted':'enabled',mode:version}};},
+ apply:operation=>{
+   if(operation==='start'&&playing)return;
+   if(['start','replay','standby'].includes(operation)){
+     version='story';playhead=0;time=0;phase=-1;showComplete=false;endOrb();
+     document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));
+   }
+   if(operation==='play'&&showComplete)throw Error('展演已結束，請按重播');
+   playing=['start','play','replay'].includes(operation);
+   last=performance.now();syncSceneOSC(time,playing,version,true);refresh();syncVoice(true);syncPlay();
+ }
+});

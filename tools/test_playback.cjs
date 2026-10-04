@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../bedroom.js'),'utf8');
-const frame=source.slice(source.indexOf('function frame(now)'),source.indexOf('new ResizeObserver',source.indexOf('function frame(now)')));
+const frame=source.slice(source.indexOf('function advanceClock(now)'),source.indexOf('new ResizeObserver',source.indexOf('function frame(now)')));
 test('all C versions stop once, force the final display update, and never wrap',async()=>{
  const clock=await import('../presentation-timeline.mjs');
  for(const [version,end] of [['story',90],['noon',30],['night',60],['morning',90]]){

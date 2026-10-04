@@ -1,3 +1,15 @@
+# C 區本機 X 控制（2026-10-05）
+
+目前睡眠劇場實作為本 repo，完整長度 **138 秒**。`C-Sleep-Theater` 是佔位 repo；`C-Digital-Window` 是獨立窗景，沒有納入本頁的 ready 或執行確認。下方早期 133 秒說明是歷史記錄。
+
+X 控制入口使用 `python tools/serve.py --port 8765`，開啟 `http://127.0.0.1:8765/Cweb-3d.html?x=1&audio=muted`。一般 `python -m http.server` 只提供靜態預覽，不提供 X API。服務只綁定 loopback；iPad 經 X 總控操作，不能直接把此位址當 LAN 入口。`audio=muted` 同時關閉語音狀態並靜音所有音軌，測試請保留。
+
+`x-playback-v1` 使用 HTTP：GET `/api/x/status`，POST `/api/x/control`（`{id,epoch,operation}`）。先取得狀態的 epoch，再傳唯一命令 id；202 accepted 只代表排入，須等主頁回報 `command.state=applied` 才算執行。操作有 `start`、`pause`、`play`、`replay`、`standby`；X 的 reset 對應 standby，回到 0 秒並停止。播放中 start 不重置；完成後 play 拒絕，必須 replay。請勿同時開啟兩個帶 `x=1` 的主頁。
+
+主頁約每 500ms 回報一次，背景時鐘由 snapshot 推進，不依賴 requestAnimationFrame。`ready` 是主頁與 WebGL 就緒；`outputs[].visible/rendering` 另行標示可见性與近期渲染，不能把 ready 當成實體投影已確認。主頁停止回報超過 4 秒會變為未就緒，未完成命令超過 3 秒變為 unknown。服務重啟會換 epoch；主頁重連後保留自己的播放進度，不重送舊指令。
+
+隔離測試可使用 `--port 8875` 和相同頁面查詢參數，勿透過共用 PAD 發送測試。2026-10-05 已實測五種控制、五段連續 138 秒、結尾停止與服務重啟重連；25 項時鐘／分鏡／字幕／鏡頭／光影測試通過。IAB 隱藏面板仍回報 visible=true，因此真正背景渲染抑制下的實機播放仍須另驗證；背景時鐘單元測試已通過。TouchDesigner 實體接收、投影校準、窗景播放不在本次主頁確認範圍。
+
 # C 區 V2 試播（2026-09-27）
 
 以 `python -m http.server 8765` 啟動，開啟 `http://127.0.0.1:8765/Cweb-3d.html?v=story-v2`。
