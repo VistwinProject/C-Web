@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {storyTime,showTime,entryState,entryActive,SHOW_DURATION} from '../entry-timeline.mjs';
 import {projectionValue,windowHeatValue} from '../entry-projection.mjs';
-test('ten-second interaction overlaps uninterrupted narration and preserves chapter boundaries',()=>{
- assert.equal(storyTime(0),0);assert.equal(storyTime(3),3);assert.equal(storyTime(12.999),12.999);assert.equal(storyTime(13),13);
- assert.equal(entryActive(3),true);assert.equal(entryActive(13),false);
- assert.equal(showTime(30),30);assert.equal(showTime(60),60);assert.equal(showTime(90),SHOW_DURATION);
- for(const t of [0,2,3,15,30,60,90])assert.equal(storyTime(showTime(t)),t);
+import {voiceTiming} from '../voice-timing.mjs';
+test('compressed chapters preserve simulation boundaries and ten-second reveal',()=>{
+ assert.equal(storyTime(0),0);assert.equal(entryActive(3),true);assert.equal(entryActive(13),false);
+ assert.ok(SHOW_DURATION<90);assert.equal(showTime(90),SHOW_DURATION);
+ for(const t of [0,2,3,15,30,45,60,75,90])assert.ok(Math.abs(storyTime(showTime(t))-t)<1e-9);
+ for(let i=0;i<3;i++)assert.equal(showTime(i*30),voiceTiming.chapterStarts[i]);
 });
 test('projection reveal stays deterministic without a placeholder person',()=>{
  assert.equal(entryState(0).opacity,0);assert.equal(entryState(3).floor,0);
@@ -58,11 +59,10 @@ test('mattress has a varied cool field and night excludes every daylight contrib
 
 import {narration} from '../c-story.mjs';
 import {cues} from '../c-captions.mjs';
-test('opening phrase flows directly into design narration during the visual interaction',()=>{
- const start=narration[0][3];assert.equal(start,1.5);
- assert.equal(storyTime(3)-start,1.5);assert.equal(storyTime(12.9)-start,11.4);
- assert.equal(storyTime(13)-start,11.5);assert.ok(storyTime(14)-start>1.5);
- const comma=String.fromCharCode(0xff0c),split=narration[0][2].indexOf(comma)+1;
- assert.equal(cues[0].text,narration[0][2].slice(0,split));assert.equal(cues[0].end,3);
- assert.ok(narration[0][2].slice(split).startsWith(cues[1].text));assert.equal(cues[1].start,3);
+test('audio runs at original speed across visual reveal with no split or restart',()=>{
+ const parts=cues.filter(c=>c.id.startsWith('c-0-'));
+ assert.equal(parts.map(c=>c.text).join(''),narration[0][2]);
+ assert.equal(parts[0].start,.6);
+ assert.equal(parts.at(-1).end,narration[0][3]+voiceTiming.durations[0]);
+ assert.ok(parts[0].start<3&&parts.at(-1).end>13);
 });

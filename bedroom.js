@@ -1,7 +1,8 @@
+import {createBrandCover} from './brand-cover.mjs';
 import {projectionValue,thermalPalette} from './entry-projection.mjs?v=organic-6';
-import {storyTime,showTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=voice-exit-1';
+import {storyTime,showTime,bodyTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=owner-20261007';
 import {intro} from './intro.mjs';
-import {ending} from './ending.mjs?v=voice-exit-1';
+import {ending} from './ending.mjs?v=owner-20261007';
 import {connectX} from './x-control.mjs';
 import {createEntryExperience} from './entry-experience.js?v=organic-night-6';
 import {createSunlight} from './sunlight-view.js?v=spread-3';
@@ -12,14 +13,15 @@ import * as THREE from 'three';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 
 import {createBedModel} from './bed-model.js';
-import {ambientAt,ambientBackground,mixColor} from './ambient-light.mjs';
+import {ambientAt,ambientBackground,mixColor} from './ambient-light.mjs?v=20261007b';
 import {config} from './scene-config.js?v=ac-1';
 import {cameraAt,shots} from './camera-shots.mjs?v=calm-5';
 import {focusEmphasis} from './focus-emphasis.mjs';
-import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=voice-exit-1';
-import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=opening-7';
+import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=owner-20261007';
+import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=owner-20261007';
 
 const $=id=>document.getElementById(id), viewport=$('viewport');
+const updateBrandCover=createBrandCover(document.querySelector('main'),{zone:'C',title:'睡眠劇場',english:'SLEEP THEATER',theme:'每個人，都有適合自己的睡眠環境'});
 let renderer;
 try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});}catch(error){$('loading').textContent='此瀏覽器未提供 WebGL。請改用支援 WebGL 的瀏覽器，或上方「比較 2D」。';throw error;}
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;viewport.prepend(renderer.domElement);
@@ -137,7 +139,7 @@ updateVoiceAvailability();
 function syncVoice(force=false){
  if(isOutro(playhead)){
   introAudio.pause();voiceTracks.forEach(audio=>audio.pause());const offset=playhead-OUTRO_START-ending.start;
-  if(!voiceEnabled||!playing||offset<0||!Number.isFinite(endingAudio.duration)||offset>=endingAudio.duration){endingAudio.pause();return;}
+  if(!voiceEnabled||!playing||offset<0||!Number.isFinite(endingAudio.duration)||offset>=Math.min(endingAudio.duration,ending.summaryEnd-ending.start)){endingAudio.pause();return;}
   if(force||Math.abs(endingAudio.currentTime-offset)>.3)endingAudio.currentTime=offset;
   if(endingAudio.paused)endingAudio.play().catch(()=>{playing=false;syncPlay();});return;
  }
@@ -151,7 +153,7 @@ function syncVoice(force=false){
  introAudio.pause();
  const act=Math.min(2,Math.floor(time/30));
  voiceTracks.forEach((audio,i)=>{
-  const offset=time-narration[i][3];
+  const offset=bodyTime(playhead)-narration[i][3];
   if(i!==act||!voiceEnabled||!playing||offset<0||!Number.isFinite(audio.duration)||offset>=audio.duration){audio.pause();return;}
   if(force||Math.abs(audio.currentTime-offset)>.6)audio.currentTime=offset;
   if(audio.paused)audio.play().catch(()=>{playing=false;voiceTracks.forEach(a=>a.pause());syncPlay();$('voiceToggle').textContent='語音：開';});
@@ -187,7 +189,7 @@ function drawHeat(s){
 }
 function projectionDraw(s){
  const scan=smooth((time-15)/9),settle=smooth((time-75)/9),day=ambientAt(time).day,ink=mixColor(0xc5e4ff,0x36596a,day);
- pc.clearRect(0,0,768,432);pc.fillStyle=mixColor(0x174a79,0xfff8e6,day);pc.globalAlpha=(72+96*day)/255;pc.fillRect(0,0,768,432);pc.globalAlpha=1;
+ pc.clearRect(0,0,768,432);pc.fillStyle=mixColor(0x174a79,0xf4f8ff,day);pc.globalAlpha=(72+96*day)/255;pc.fillRect(0,0,768,432);pc.globalAlpha=1;
  pc.save();pc.globalAlpha=1-settle;
  pc.strokeStyle=mixColor(0x82bfff,0x718d97,day);pc.lineWidth=1;pc.strokeRect(1,1,766,430);
  pc.fillStyle=ink;pc.font='22px sans-serif';pc.fillText('C  /  SLEEP ENVIRONMENT',32,48);
@@ -273,9 +275,9 @@ function animateFlows(dt,s){flowGroup.visible=flowVisible;
  for(let i=0;i<p.beads.length;i++){const t=(p.progress+i/5)%1;p.beads[i].position.copy(p.curve.getPoint(t));p.beads[i].material.opacity=.95*opacity;p.beads[i].children[0].material.opacity=.85*opacity;}
  const t=p.progress;p.arrow.position.copy(p.curve.getPoint(t));p.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),p.curve.getTangent(t).normalize());p.arrow.material.opacity=.65*opacity;
 }}
-function acPowerLabel(s){return s.acPower<.01?'待機':s.acSet.toFixed(1)+'°C · '+(s.acPower>.7?'預冷送風':s.acPower<.4?'低風量':'適中送風');}
-function update(){updateNarration();const s=sample(time),p=Math.min(5,Math.floor(time/15));if(p!==phase){phase=p;$('phaseNumber').textContent=`0${Math.floor(p/2)+1} / 03`;$('phaseTitle').textContent=narration[Math.floor(p/2)][1].split(' · ')[1];$('phaseText').textContent=descriptions[p][1];document.querySelectorAll('button[data-phase]').forEach((b,i)=>b.classList.toggle('active',i===Math.floor(p/2)));}
-$('temperature').textContent=s.temp.toFixed(1);$('acSetpoint').textContent=s.acSet.toFixed(1);$('illuminance').textContent=Math.round(s.light*100);$('lightBar').style.width=(s.light*100)+'%';
+function acPowerLabel(s){return s.acPower<.01?'待機':(s.acPower>.7?'預冷送風':s.acPower<.4?'低風量':'適中送風');}
+function update(){updateBrandCover({time:playhead,playing,duration:SHOW_DURATION});updateNarration();const s=sample(time),p=Math.min(5,Math.floor(time/15));if(p!==phase){phase=p;$('phaseNumber').textContent=`0${Math.floor(p/2)+1} / 03`;$('phaseTitle').textContent=narration[Math.floor(p/2)][1].split(' · ')[1];$('phaseText').textContent=descriptions[p][1];document.querySelectorAll('button[data-phase]').forEach((b,i)=>b.classList.toggle('active',i===Math.floor(p/2)));}
+$('lightScene').textContent=p<2?'日間':p===2?'漸暗':p===3?'低亮':'漸亮';
 const phaseText=['設計規劃','舒眠配置','睡前調整','低風維持','清晨漸亮','情境對照'][p];
 $('bedStatus').textContent=phaseText;$('bedDetail').textContent=['冷氣・熱源・床位','熱力圖對照送風路徑','冷氣與窗簾共同調整','觀察床位周圍的環境','溫度與光線依情境調整','設定示意，依個人需求調整'][p];
 $('acReadout').textContent=acPowerLabel(s);$('freshReadout').textContent=s.power>0?'背景換氣 · 持續送入':'背景換氣 · 待機';
@@ -285,7 +287,7 @@ const focus=p===0?(time<5?'ac':time<10?'heat':'bed'):p===1?'all':p<4?'sleep':'wa
 for(const [key,item] of [['ac',acLabel],['heat',heatLabel],['bed',bedLabel]])item.el.classList.toggle('focus',focus===key||focus==='all');
 document.querySelectorAll('[data-focus]').forEach(el=>el.classList.toggle('active',focus===el.dataset.focus||focus==='all'));
 document.querySelectorAll('[data-compare]').forEach(el=>el.classList.toggle('active',Number(el.dataset.compare)===(time<45?0:time<60?1:2)));
-$('sleepSetting').textContent=target.toFixed(1)+'°C';$('beforeSetting').textContent=(target-1.5).toFixed(1)+'°C';$('wakeSetting').textContent=(target+.5).toFixed(1)+'°C';
+
 $('time').textContent=formatTime(playhead)+' / '+formatTime(SHOW_DURATION);$('progress').style.width=(playhead/SHOW_DURATION*100)+'%';$('viewport').dataset.simulationTime=time.toFixed(2);$('viewport').dataset.showTime=playhead.toFixed(2);$('viewport').dataset.phase=String(p);$('viewport').dataset.bedTemperature=s.temp.toFixed(2);
 const points=[];for(let t=0;t<=time;t+=1){points.push(`${(t/90*238).toFixed(1)},${(35-(sample(t).temp-19)/20*30).toFixed(1)}`);}$('trend').firstElementChild.setAttribute('d',points.length?'M'+points.join(' L'):'');drawHeat(s);projectionDraw(s);
  const next=periodAt(time),ambient=ambientAt(time);period=next;
@@ -344,7 +346,7 @@ function frame(now){
  viewport.dataset.visitorReady=String(entry.visitorReady);viewport.dataset.entryActive=String(entry.active);viewport.dataset.entryFloor=entry.floor.toFixed(3);viewport.dataset.entryBed=entry.bed.toFixed(3);
  if(entry.active){$('phaseText').textContent='日照、送風與休息位置，一起構成舒眠環境。';$('storyCue').textContent='地板與床面 · 互動光影';}
  else if(time<15&&!isIntro(playhead)){$('phaseText').textContent=descriptions[0][1];}
- sunlight.update(sample(time).solar*(1-closingFade(playhead)),heatVisible);animateFlows(dt,sample(time));settleScene();if(isIntro(playhead))updateIntroCaption(playhead);else if(isOutro(playhead))updateOutroCaption(playhead-OUTRO_START);else updateCaption(time);updateCamera(time);
+ sunlight.update(sample(time).solar*(1-closingFade(playhead)),heatVisible);animateFlows(dt,sample(time));settleScene();if(isIntro(playhead))updateIntroCaption(playhead);else if(isOutro(playhead))updateOutroCaption(playhead-OUTRO_START);else updateCaption(bodyTime(playhead));updateCamera(time);
  for(const l of labels){const p=l.pos.clone().project(camera);l.el.style.left=(p.x*.5+.5)*viewport.clientWidth+'px';l.el.style.top=(-p.y*.5+.5)*viewport.clientHeight+'px';l.el.hidden=p.z>1||(l===heatLabel&&sample(time).solar<=.01);}
  renderer.render(scene,camera);requestAnimationFrame(frame);
 }
@@ -360,7 +362,7 @@ new ResizeObserver(()=>{
  camera.top=half;camera.bottom=-half;camera.updateProjectionMatrix();
 }).observe(viewport);
 function refresh(){lastUpdate=-1;update();}
-function syncPlay(){ $('playPause').textContent=playing?'Ⅱ 暫停':showComplete?'↺ 重播':'▶ 播放';}
+function syncPlay(){ updateBrandCover({time:playhead,playing,duration:SHOW_DURATION});$('playPause').textContent=playing?'Ⅱ 暫停':showComplete?'↺ 重播':'▶ 播放';}
 function unlockVoice(){if(voiceEnabled)prepareOrbAudio(allVoiceTracks).catch(()=>{});}
  document.querySelector('footer').addEventListener('click',unlockVoice);document.querySelector('#presentation-tools').addEventListener('click',unlockVoice);
 $('playPause').onclick=()=>{if(showComplete){$('restart').click();return;}playing=!playing;syncVoice(true);syncPlay();};$('restart').onclick=()=>{showComplete=false;endOrb();time=ranges[version][0];playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();};document.querySelectorAll('button[data-phase]').forEach(b=>b.onclick=()=>{showComplete=false;version='story';document.querySelectorAll('[data-version]').forEach(v=>v.classList.toggle('selected',v.dataset.version==='story'));const selected=Number(b.dataset.phase);time=selected*30;playhead=showTime(time);phase=-1;playing=true;syncSceneOSC(time,playing,version,true);refresh();syncPlay();});
@@ -382,7 +384,7 @@ refresh();requestAnimationFrame(frame);
 connectX({
  snapshot:()=>{advanceClock(performance.now());return {ready:!!root&&!renderer.getContext().isContextLost(),visible:!document.hidden,rendering:!document.hidden&&performance.now()-lastDrawAt<2000,playback:{position:playhead,duration:SHOW_DURATION,playing,complete:showComplete,
    chapter:isIntro(playhead)?1:isOutro(playhead)?5:2+Math.min(2,Math.floor(time/30)),
-   title:isIntro(playhead)?'前言':isOutro(playhead)?'結語':['最懂你的空間','睡前到入睡','起床與回看'][Math.min(2,Math.floor(time/30))],
+   title:isIntro(playhead)?'前言':isOutro(playhead)?'結語':['最懂你的空間','睡前到入睡','清晨起床'][Math.min(2,Math.floor(time/30))],
    audio:silentTest||!voiceEnabled?'muted':'enabled',mode:version}};},
  apply:operation=>{
    if(operation==='start'&&playing)return;

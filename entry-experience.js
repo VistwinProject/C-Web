@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {projectionValue,thermalPalette} from './entry-projection.mjs?v=organic-6';
-import {entryState} from './entry-timeline.mjs?v=no-person-5';
+import {entryState} from './entry-timeline.mjs?v=owner-20261007';
 
 // Only the environmental projection is shown; no visitor asset is loaded.
 export function createEntryExperience(scene,solarExposure){

@@ -1,0 +1,22 @@
+/* Preserve the theater's transparent UI and day/night arc. B informs daylight tint and typography only. */
+body{font-family:'Segoe UI','Microsoft JhengHei','PingFang TC',sans-serif}
+body[data-period="noon"],body[data-period="morning"]{--shell:#eef5ff;--panel:#f5f9ff;--card:#fff;--line:#b8cde7;--accent:#295c98;--text:#203c61;--muted:#5b7190;--glass-panel:rgba(247,251,255,.36);--glass-card:rgba(255,255,255,.22);--glass-shell:rgba(235,244,255,.64);--glass-line:rgba(93,127,168,.24)}
+.exhibition-stage>aside{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.exhibition-stage #narrative{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.exhibition-stage .chapter h1{font-weight:500;letter-spacing:.04em}
+.exhibition-stage .scene-heading{background:transparent;border:0;border-radius:0;box-shadow:none}
+.exhibition-stage .metrics{grid-template-columns:1fr;gap:0}
+.exhibition-stage .metrics article{background:transparent;border:0!important;padding:12px 0!important}
+.exhibition-stage .metrics article.trend-card{grid-column:1/-1;border-bottom:1px solid var(--glass-line)!important;padding-bottom:14px!important}
+.exhibition-stage #trend{position:static;width:100%;height:58px;display:block;margin-top:12px;opacity:.85}
+.exhibition-stage #trend path{fill:none;stroke:var(--accent);stroke-width:1.6}
+.exhibition-stage .metrics article.light-card,.exhibition-stage .metrics article.status-card{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-bottom:1px solid var(--glass-line)!important}
+.exhibition-stage .metrics article.light-card>div,.exhibition-stage .metrics article.status-card>div{margin:0 0 0 auto}
+.exhibition-stage .metrics article.status-card small{width:100%;line-height:1.6}
+.exhibition-stage .metrics article.light-card strong{font-size:clamp(23px,1.6vw,34px);font-weight:500}
+.exhibition-stage .state-comparison>div{background:var(--glass-card);border-color:var(--glass-line);border-radius:10px}
+.exhibition-stage .state-comparison>div.active{background:var(--glass-panel);border-color:var(--accent)}
+.exhibition-stage .state-comparison b{font-size:clamp(23px,1.6vw,32px)}
+body[data-period="noon"] .label,body[data-period="morning"] .label{background:rgba(247,251,255,.38)}
+/* Heat-source amber and fresh-air green retain their physical meaning. */
+.preview-player button.primary{border-radius:10px}

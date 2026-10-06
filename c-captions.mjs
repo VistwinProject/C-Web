@@ -1,16 +1,9 @@
-import {ending} from './ending.mjs?v=voice-exit-1';
+import {ending} from './ending.mjs?v=owner-20261007';
 import {intro} from './intro.mjs';
-import {narration} from './c-story.mjs?v=opening-7';
+import {narration} from './c-story.mjs?v=owner-20261007';
 import {buildCaptions,captionAt} from './caption-timeline.mjs?v=slow-1';
-const durations=[20.599,18.639,18.749];
-// The measured first-phrase pause is 1.34–1.65 s in the audio file.
-// Title and design explanation share uninterrupted audio across the visual interaction.
-const opening=narration[0];
-const clips=[
- {id:'c-0-title',text:opening[2].slice(0,opening[2].indexOf('，')+1),start:opening[3],end:3},
- {id:'c-0',text:opening[2].slice(opening[2].indexOf('，')+1),start:3,end:opening[3]+durations[0]},
- ...narration.slice(1).map((n,i)=>({id:'c-'+(i+1),text:n[2],start:n[3],end:n[3]+durations[i+1]}))
-];
+import {voiceTiming} from './voice-timing.mjs';
+const clips=narration.map((n,i)=>({id:'c-'+i,text:n[2],start:n[3],end:n[3]+voiceTiming.durations[i]}));
 export const cues=buildCaptions(clips,28);
 const introCues=buildCaptions([{id:"c-intro",text:intro.text,start:intro.start,end:intro.end}],28);
 const endingCues=[...buildCaptions([{id:"c-ending",text:ending.summaryText,start:ending.start,end:ending.summaryEnd}],28),

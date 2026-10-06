@@ -1,9 +1,17 @@
+import {voiceTiming} from './voice-timing.mjs';
 // The ten-second visual experience overlaps narration; it never holds the voice clock.
-export const ENTRY_START=3,ENTRY_DURATION=10,SHOW_DURATION=90;
+export const ENTRY_START=3,ENTRY_DURATION=10,SHOW_DURATION=voiceTiming.bodyDuration;
 const clamp=v=>Math.max(0,Math.min(1,v));
 const smooth=v=>{v=clamp(v);return v*v*(3-2*v);};
-export function storyTime(playhead){return playhead;}
-export function showTime(story){return story;}
+export function storyTime(playhead){
+ const t=Math.max(0,Math.min(SHOW_DURATION,playhead));
+ const i=t>=voiceTiming.chapterStarts[2]?2:t>=voiceTiming.chapterStarts[1]?1:0;
+ return i*30+(t-voiceTiming.chapterStarts[i])/voiceTiming.chapterLengths[i]*30;
+}
+export function showTime(story){
+ const t=Math.max(0,Math.min(90,story)),i=Math.min(2,Math.floor(t/30));
+ return voiceTiming.chapterStarts[i]+(t-i*30)/30*voiceTiming.chapterLengths[i];
+}
 export function entryActive(playhead){return playhead>=ENTRY_START&&playhead<ENTRY_START+ENTRY_DURATION;}
 export function entryState(playhead,reduced=false){
  const elapsed=playhead-ENTRY_START;
