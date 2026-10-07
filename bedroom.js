@@ -1,8 +1,8 @@
 import {createBrandCover} from './brand-cover.mjs';
 import {projectionValue,thermalPalette} from './entry-projection.mjs?v=organic-6';
-import {storyTime,showTime,bodyTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=owner-20261007';
-import {intro} from './intro.mjs';
-import {ending} from './ending.mjs?v=owner-20261007';
+import {storyTime,showTime,bodyTime,entryActive,SHOW_DURATION,INTRO_DURATION,isIntro,formatTime,OUTRO_START,isOutro,closingFade} from './presentation-timeline.mjs?v=mp3-20261007';
+import {intro} from './intro.mjs?v=mp3-20261007';
+import {ending} from './ending.mjs?v=mp3-20261007';
 import {connectX} from './x-control.mjs';
 import {createEntryExperience} from './entry-experience.js?v=organic-night-6';
 import {createSunlight} from './sunlight-view.js?v=spread-3';
@@ -17,8 +17,8 @@ import {ambientAt,ambientBackground,mixColor} from './ambient-light.mjs?v=202610
 import {config} from './scene-config.js?v=ac-1';
 import {cameraAt,shots} from './camera-shots.mjs?v=calm-5';
 import {focusEmphasis} from './focus-emphasis.mjs';
-import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=owner-20261007';
-import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=owner-20261007';
+import {updateCaption,updateIntroCaption,updateOutroCaption} from './c-captions.mjs?v=mp3-20261007';
+import {narration,descriptions,sampleEnvironment} from './c-story.mjs?v=mp3-20261007';
 
 const $=id=>document.getElementById(id), viewport=$('viewport');
 const updateBrandCover=createBrandCover(document.querySelector('main'),{zone:'C',title:'睡眠劇場',english:'SLEEP THEATER',theme:'每個人，都有適合自己的睡眠環境'});

@@ -1,6 +1,6 @@
-import {ending} from './ending.mjs?v=owner-20261007';
-import {intro} from './intro.mjs';
-import {narration} from './c-story.mjs?v=owner-20261007';
+import {ending} from './ending.mjs?v=mp3-20261007';
+import {intro} from './intro.mjs?v=mp3-20261007';
+import {narration} from './c-story.mjs?v=mp3-20261007';
 import {buildCaptions,captionAt} from './caption-timeline.mjs?v=slow-1';
 import {voiceTiming} from './voice-timing.mjs';
 const clips=narration.map((n,i)=>({id:'c-'+i,text:n[2],start:n[3],end:n[3]+voiceTiming.durations[i]}));

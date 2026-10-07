@@ -21,7 +21,7 @@ test('design voice keeps advancing while the entry projection is active',async()
  vm.createContext(ctx);vm.runInContext(fn,ctx);
  for(const time of [3.1,8.1,12.5]){
   ctx.time=time;ctx.playhead=clock.INTRO_DURATION+time;assert.equal(clock.entryActive(ctx.playhead),true);
-  ctx.syncVoice(true);assert.equal(ctx.voiceTracks[0].paused,false);assert.equal(ctx.voiceTracks[0].currentTime,time-1.5);
+  ctx.syncVoice(true);assert.equal(ctx.voiceTracks[0].paused,false);assert.ok(Math.abs(ctx.voiceTracks[0].currentTime-(time-narration[0][3]))<1e-9);
   assert.equal(ctx.introAudio.paused,true);assert.equal(ctx.voiceTracks[1].paused,true);
  }
 });

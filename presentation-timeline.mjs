@@ -1,6 +1,6 @@
-import {ending} from './ending.mjs?v=owner-20261007';
-import {intro} from './intro.mjs';
-import {storyTime as bodyStoryTime,showTime as bodyShowTime,entryActive as bodyEntryActive,SHOW_DURATION as BODY_DURATION} from './entry-timeline.mjs?v=owner-20261007';
+import {ending} from './ending.mjs?v=mp3-20261007';
+import {intro} from './intro.mjs?v=mp3-20261007';
+import {storyTime as bodyStoryTime,showTime as bodyShowTime,entryActive as bodyEntryActive,SHOW_DURATION as BODY_DURATION} from './entry-timeline.mjs?v=mp3-20261007';
 export const INTRO_DURATION=intro.sectionDuration,OUTRO_START=INTRO_DURATION+BODY_DURATION,SHOW_DURATION=OUTRO_START+ending.sectionDuration;
 export const isIntro=t=>t>=0&&t<INTRO_DURATION;
 export const bodyTime=t=>Math.min(BODY_DURATION,Math.max(0,t-INTRO_DURATION));
